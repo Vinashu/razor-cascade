@@ -219,8 +219,10 @@ function escapeHtml(value: string): string {
 
 export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[]): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
-  const maxCost = Math.max(...data.map((item) => item.meanCostUsd), 1);
-  const maxTokens = Math.max(...data.map((item) => item.meanTokens), 1);
+  const maxCost = Math.max(...data.map((item) => item.meanCostUsd));
+  const maxTokens = Math.max(...data.map((item) => item.meanTokens));
+  const costScaleMax = maxCost > 0 ? maxCost : 1;
+  const tokenScaleMax = maxTokens > 0 ? maxTokens : 1;
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -359,7 +361,7 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
             .map(
               (item) => `<div>
             <div class="label"><span>${escapeHtml(item.label)}</span><span>$${item.meanCostUsd.toFixed(4)}</span></div>
-            <div class="bar-shell"><div class="bar" style="width:${Math.max(4, (item.meanCostUsd / maxCost) * 100)}%"></div></div>
+            <div class="bar-shell"><div class="bar" style="width:${Math.max(4, (item.meanCostUsd / costScaleMax) * 100)}%"></div></div>
           </div>`,
             )
             .join("")}
@@ -372,7 +374,7 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
             .map(
               (item) => `<div>
             <div class="label"><span>${escapeHtml(item.label)}</span><span>${Math.round(item.meanTokens).toLocaleString()}</span></div>
-            <div class="bar-shell"><div class="bar tokens" style="width:${Math.max(4, (item.meanTokens / maxTokens) * 100)}%"></div></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:${Math.max(4, (item.meanTokens / tokenScaleMax) * 100)}%"></div></div>
           </div>`,
             )
             .join("")}
@@ -426,3 +428,4 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
 
   await Bun.write(filePath, html);
 }
+
