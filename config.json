@@ -1,0 +1,45 @@
+{
+  "defaultRuns": 10,
+  "outputDir": "experiments",
+  "configs": [
+    {
+      "name": "baseline",
+      "description": "OpenAI flagship only with full conversation history at every step.",
+      "mode": "baseline",
+      "provider": "openai",
+      "flagshipModel": "gpt-5.4"
+    },
+    {
+      "name": "openai-mini",
+      "description": "OpenAI same-provider cascade using gpt-5-mini as the gate.",
+      "mode": "cascade",
+      "provider": "openai",
+      "flagshipModel": "gpt-5.4",
+      "gateModel": "gpt-5-mini"
+    },
+    {
+      "name": "openai-nano",
+      "description": "OpenAI same-provider cascade using gpt-5-nano as the gate.",
+      "mode": "cascade",
+      "provider": "openai",
+      "flagshipModel": "gpt-5.4",
+      "gateModel": "gpt-5-nano"
+    },
+    {
+      "name": "anthropic",
+      "description": "Anthropic cascade using Claude 4 Sonnet with Claude 4 Haiku as the gate.",
+      "mode": "cascade",
+      "provider": "anthropic",
+      "flagshipModel": "claude-4-sonnet",
+      "gateModel": "claude-4-haiku"
+    },
+    {
+      "name": "grok",
+      "description": "xAI cascade using grok-4 with grok-code-fast as the gate.",
+      "mode": "cascade",
+      "provider": "xai",
+      "flagshipModel": "grok-4",
+      "gateModel": "grok-code-fast"
+    }
+  ]
+}
