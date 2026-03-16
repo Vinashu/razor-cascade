@@ -17,8 +17,8 @@ describe("study runner", () => {
         dryRun: true,
         skipTests: true,
       });
-      const grokBaselineResult = await runStudy({
-        configName: "baseline-grok",
+      const geminiBaselineResult = await runStudy({
+        configName: "baseline-gemini",
         runs: 1,
         outputDir,
         dryRun: true,
@@ -29,14 +29,14 @@ describe("study runner", () => {
       expect(aliasResult.summaryRecords.length).toBe(1);
       expect(String(aliasResult.summaryRecords[0]?.config)).toBe("baseline-openai");
 
-      expect(grokBaselineResult.runRecords.length).toBe(1);
-      expect(grokBaselineResult.summaryRecords.length).toBe(1);
-      expect(String(grokBaselineResult.summaryRecords[0]?.config)).toBe("baseline-grok");
+      expect(geminiBaselineResult.runRecords.length).toBe(1);
+      expect(geminiBaselineResult.summaryRecords.length).toBe(1);
+      expect(String(geminiBaselineResult.summaryRecords[0]?.config)).toBe("baseline-gemini");
       expect(Number(aliasResult.summaryRecords[0]?.mean_cost_usd)).toBeGreaterThan(0);
-      expect(Number(grokBaselineResult.summaryRecords[0]?.mean_cost_usd)).toBeGreaterThan(0);
+      expect(Number(geminiBaselineResult.summaryRecords[0]?.mean_cost_usd)).toBeGreaterThan(0);
 
       expect(await Bun.file(join(aliasResult.outputFolder, "steps.csv")).exists()).toBe(true);
-      expect(await Bun.file(join(grokBaselineResult.outputFolder, "dashboard.html")).exists()).toBe(true);
+      expect(await Bun.file(join(geminiBaselineResult.outputFolder, "dashboard.html")).exists()).toBe(true);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }

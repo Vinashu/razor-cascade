@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
-export type ProviderName = "openai" | "anthropic" | "xai";
+export type ProviderName = "openai" | "anthropic" | "xai" | "gemini";
 
 export interface TokenUsage {
   inputTokens: number;
@@ -46,6 +46,10 @@ const PRICE_BOOK: Record<ProviderName, Record<string, ModelPricing>> = {
     "grok-code-fast": { inputUsdPerMillion: 0.2, outputUsdPerMillion: 1 },
     "grok-4.20-beta": { inputUsdPerMillion: 2.5, outputUsdPerMillion: 10 },
     "grok-4-fast": { inputUsdPerMillion: 0.2, outputUsdPerMillion: 1.5 },
+  },
+  gemini: {
+    "gemini-2.5-pro": { inputUsdPerMillion: 1.25, outputUsdPerMillion: 10 },
+    "gemini-2.5-flash": { inputUsdPerMillion: 0.3, outputUsdPerMillion: 2.5 },
   },
 };
 

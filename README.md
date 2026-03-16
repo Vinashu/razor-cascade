@@ -35,6 +35,7 @@ Using a cheaper same-provider gate model to summarize context before each flagsh
 | OpenAI | `gpt-5.4` | `gpt-5-nano` | $2.50 / $15.00 | $0.05 / $0.40 | Lowest cost OpenAI gate |
 | Anthropic | `claude-4-sonnet` | `claude-4-haiku` | $3.00 / $15.00 | $1.00 / $5.00 | Strong architectural planning |
 | xAI | `grok-4` | `grok-code-fast` | $2.50 / $10.00 | $0.20 / $1.00 | Fast same-provider cascade |
+| Gemini | `gemini-2.5-pro` | `gemini-2.5-flash` | $1.25 / $10.00 | $0.30 / $2.50 | Google flagship + fast gate |
 
 ## Repository Layout
 
@@ -88,6 +89,7 @@ If provider keys are absent, the study runner automatically falls back to determ
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 XAI_API_KEY=xai-...
+GEMINI_API_KEY=...
 
 OPENAI_FLAGSHIP_MODEL=gpt-5.4
 OPENAI_GATE_MODEL=gpt-5-mini
@@ -95,6 +97,8 @@ ANTHROPIC_FLAGSHIP_MODEL=claude-4-sonnet
 ANTHROPIC_GATE_MODEL=claude-4-haiku
 XAI_FLAGSHIP_MODEL=grok-4
 XAI_GATE_MODEL=grok-code-fast
+GEMINI_FLAGSHIP_MODEL=gemini-2.5-pro
+GEMINI_GATE_MODEL=gemini-2.5-flash
 ```
 
 ## Running TaskForge
@@ -136,6 +140,10 @@ bun run study --config anthropic --runs 10
 # xAI baseline and cascade
 bun run study --config baseline-grok --runs 10
 bun run study --config grok --runs 10
+
+# Gemini baseline and cascade
+bun run study --config baseline-gemini --runs 10
+bun run study --config gemini --runs 10
 
 # Every configured setup
 bun run study --all --runs 10

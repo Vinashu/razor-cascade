@@ -54,6 +54,21 @@
       "provider": "xai",
       "flagshipModel": "grok-4",
       "gateModel": "grok-code-fast"
+    },
+    {
+      "name": "baseline-gemini",
+      "description": "Gemini flagship only with full conversation history at every step.",
+      "mode": "baseline",
+      "provider": "gemini",
+      "flagshipModel": "gemini-2.5-pro"
+    },
+    {
+      "name": "gemini",
+      "description": "Gemini cascade using Gemini 2.5 Pro with Gemini 2.5 Flash as the gate.",
+      "mode": "cascade",
+      "provider": "gemini",
+      "flagshipModel": "gemini-2.5-pro",
+      "gateModel": "gemini-2.5-flash"
     }
   ]
 }

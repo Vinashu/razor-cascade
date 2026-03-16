@@ -61,10 +61,12 @@ describe("TaskForgeService", () => {
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
       XAI_API_KEY: process.env.XAI_API_KEY,
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     };
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.XAI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
 
     try {
     const task = await service.addTask({
@@ -94,6 +96,9 @@ describe("TaskForgeService", () => {
       }
       if (previousEnv.XAI_API_KEY !== undefined) {
         process.env.XAI_API_KEY = previousEnv.XAI_API_KEY;
+      }
+      if (previousEnv.GEMINI_API_KEY !== undefined) {
+        process.env.GEMINI_API_KEY = previousEnv.GEMINI_API_KEY;
       }
     }
   });

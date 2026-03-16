@@ -28,7 +28,7 @@ import {
 loadDotEnv();
 
 const StudyModeSchema = z.enum(["baseline", "cascade"]);
-const ProviderSchema = z.enum(["openai", "anthropic", "xai"]);
+const ProviderSchema = z.enum(["openai", "anthropic", "xai", "gemini"]);
 
 const StudyConfigSchema = z.object({
   name: z.string().min(1),

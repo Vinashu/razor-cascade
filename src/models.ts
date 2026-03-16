@@ -1,6 +1,6 @@
 import { estimateTokens } from "./metrics.ts";
 
-export type ProviderName = "openai" | "anthropic" | "xai";
+export type ProviderName = "openai" | "anthropic" | "xai" | "gemini";
 export type ModelRole = "flagship" | "gate";
 export type ClientMode = "live" | "mock";
 
@@ -49,12 +49,17 @@ export const DEFAULT_MODELS: Record<ProviderName, Record<ModelRole, string>> = {
     flagship: "grok-4",
     gate: "grok-code-fast",
   },
+  gemini: {
+    flagship: "gemini-2.5-pro",
+    gate: "gemini-2.5-flash",
+  },
 };
 
 const API_KEY_ENV: Record<ProviderName, string> = {
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   xai: "XAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
 };
 
 const MODEL_ENV_NAMES: Record<ProviderName, Record<ModelRole, string[]>> = {
@@ -69,6 +74,10 @@ const MODEL_ENV_NAMES: Record<ProviderName, Record<ModelRole, string[]>> = {
   xai: {
     flagship: ["XAI_FLAGSHIP_MODEL"],
     gate: ["XAI_GATE_MODEL"],
+  },
+  gemini: {
+    flagship: ["GEMINI_FLAGSHIP_MODEL"],
+    gate: ["GEMINI_GATE_MODEL"],
   },
 };
 
@@ -92,7 +101,7 @@ export function resolveModelFromEnv(
 }
 
 export function detectPreferredProvider(env: NodeJS.ProcessEnv = process.env): ProviderName | null {
-  const orderedProviders: ProviderName[] = ["openai", "anthropic", "xai"];
+  const orderedProviders: ProviderName[] = ["openai", "anthropic", "xai", "gemini"];
   return orderedProviders.find((provider) => Boolean(getProviderApiKey(provider, env))) ?? null;
 }
 
@@ -365,6 +374,40 @@ async function createXaiClient(options: CreateModelClientOptions): Promise<Model
   return createXaiCompatClient(options);
 }
 
+async function createGeminiClient(options: CreateModelClientOptions): Promise<ModelClient> {
+  const { GoogleGenAI } = await import("@google/genai");
+  const client = new GoogleGenAI({
+    apiKey: options.apiKey,
+  });
+
+  return {
+    provider: options.provider,
+    model: options.model,
+    mode: "live",
+    async generateText(request) {
+      const response = await client.models.generateContent({
+        model: options.model,
+        config: {
+          systemInstruction: request.system,
+          temperature: request.temperature ?? 0.2,
+          maxOutputTokens: request.maxOutputTokens ?? 1_200,
+        },
+        contents: request.prompt,
+      });
+
+      const text = response.text?.trim() ?? "";
+      return {
+        text,
+        usage: {
+          inputTokens: response.usageMetadata?.promptTokenCount ?? estimateTokens(`${request.system}\n${request.prompt}`),
+          outputTokens: response.usageMetadata?.candidatesTokenCount ?? estimateTokens(text),
+        },
+        raw: response,
+      };
+    },
+  };
+}
+
 export async function createModelClient(options: CreateModelClientOptions): Promise<ModelClient> {
   if (options.fallbackToMock) {
     return new MockModelClient(options.provider, options.model);
@@ -382,7 +425,11 @@ export async function createModelClient(options: CreateModelClientOptions): Prom
     return createAnthropicClient(options);
   }
 
-  return createXaiClient(options);
+  if (options.provider === "xai") {
+    return createXaiClient(options);
+  }
+
+  return createGeminiClient(options);
 }
 
 
