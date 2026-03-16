@@ -1,4 +1,5 @@
 import { estimateTokens } from "./metrics.ts";
+import { extractInvariants } from "./invariants.ts";
 
 export type ProviderName = "openai" | "anthropic" | "xai" | "gemini";
 export type ModelRole = "flagship" | "gate";
@@ -126,6 +127,7 @@ function buildMockGateJson(prompt: string): string {
   const compactPrompt = compact(prompt);
   const historyExcerpt = compactPrompt.slice(0, 180);
   const recentExcerpt = compactPrompt.slice(-180);
+  const invariants = extractInvariants(prompt).facts.slice(0, 8);
   return JSON.stringify(
     {
       goal: "Advance the TaskForge and RazorCascade workflow with minimal context overhead.",
@@ -140,6 +142,7 @@ function buildMockGateJson(prompt: string): string {
         "Live API calls require valid credentials and network access.",
       ],
       snippets: [recentExcerpt],
+      invariants,
     },
     null,
     2,
@@ -171,6 +174,7 @@ function buildMockExecutionText(request: ModelRequest, model: string): string {
     style,
     `Scope: ${excerpt}`,
     "Changes: reinforce command parsing, persistence, provider abstractions, and experiment exports.",
+    "Architectural facts: task priority enum = low|medium|high; task status enum = open|completed; storage file = .taskforge/tasks.json; task id must remain stable.",
     verification,
     "Risks: watch for provider credential issues, pricing drift, and malformed structured output.",
   ].join("\n");

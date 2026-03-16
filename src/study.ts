@@ -5,12 +5,16 @@ import { Command } from "commander";
 import { config as loadDotEnv } from "dotenv";
 import { z } from "zod";
 
+import { buildDriftReport } from "./contradictions.ts";
 import { formatGateSummary, summarizeWithGate } from "./gate.ts";
+import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import {
+  type DashboardCurveDatum,
   estimateCostUsd,
   estimateTokens,
   percentSavings,
   renderTextBarChart,
+  roundNumber,
   summarizeNumbers,
   totalTokens,
   writeCsv,
@@ -58,6 +62,7 @@ export interface StudyTask {
 export interface StepRecord {
   config: string;
   runId: number;
+  step: number;
   stepNumber: number;
   stepTitle: string;
   modelRole: "flagship" | "gate";
@@ -67,7 +72,12 @@ export interface StepRecord {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  cost: number;
   estimatedCostUsd: number;
+  invariantCount: number;
+  missingInvariants: number;
+  contradictions: number;
+  driftScore: number;
   durationMs: number;
   qualityScore: number;
   testsPassed: boolean | null;
@@ -85,9 +95,23 @@ export interface RunRecord {
   totalOutputTokens: number;
   totalTokens: number;
   totalCostUsd: number;
+  meanInvariantCount: number;
+  totalMissingInvariants: number;
+  totalContradictions: number;
+  totalDriftScore: number;
+  meanDriftScore: number;
   meanQualityScore: number;
   testsPassed: boolean | null;
   usedMockClients: boolean;
+}
+
+interface IterationAggregate {
+  stepNumber: number;
+  cost: number;
+  invariantCount: number;
+  missingInvariants: number;
+  contradictions: number;
+  driftScore: number;
 }
 
 interface StudyTaskResponse {
@@ -178,6 +202,30 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function aggregateIterations(stepRecords: StepRecord[]): IterationAggregate[] {
+  const grouped = new Map<number, IterationAggregate>();
+
+  for (const stepRecord of stepRecords) {
+    const existing = grouped.get(stepRecord.stepNumber) ?? {
+      stepNumber: stepRecord.stepNumber,
+      cost: 0,
+      invariantCount: 0,
+      missingInvariants: 0,
+      contradictions: 0,
+      driftScore: 0,
+    };
+
+    existing.cost = roundNumber(existing.cost + stepRecord.estimatedCostUsd, 8);
+    existing.invariantCount = Math.max(existing.invariantCount, stepRecord.invariantCount);
+    existing.missingInvariants = Math.max(existing.missingInvariants, stepRecord.missingInvariants);
+    existing.contradictions = Math.max(existing.contradictions, stepRecord.contradictions);
+    existing.driftScore = Math.max(existing.driftScore, stepRecord.driftScore);
+    grouped.set(stepRecord.stepNumber, existing);
+  }
+
+  return [...grouped.values()].sort((left, right) => left.stepNumber - right.stepNumber);
+}
+
 function buildHistoryEntry(task: StudyTask, responseText: string): string {
   return `Task ${task.number}: ${task.title}
 Objective: ${task.objective}
@@ -186,7 +234,7 @@ ${responseText}`;
 }
 
 function buildTaskPrompt(task: StudyTask, mode: StudyMode, context: string): string {
-  return `You are contributing to TaskForge, a TypeScript + Bun CLI used in the RazorCascade cost study.
+  return `You are contributing to TaskForge, a TypeScript + Bun CLI used in the RazorCascade memory reliability study.
 
 Execution mode: ${mode}
 Standardized task: ${task.number}. ${task.title}
@@ -362,6 +410,7 @@ async function executeRun(
 ): Promise<{ steps: StepRecord[]; run: RunRecord }> {
   const fullHistory: string[] = [];
   let cascadedContext = "";
+  let invariantMemory: string[] = [];
   const stepRecords: StepRecord[] = [];
 
   for (const task of STUDY_TASKS) {
@@ -372,10 +421,12 @@ async function executeRun(
       inputTokens: flagshipResult.inputTokens,
       outputTokens: flagshipResult.outputTokens,
     };
+    const flagshipCost = estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage);
 
     stepRecords.push({
       config: config.name,
       runId,
+      step: task.number,
       stepNumber: task.number,
       stepTitle: task.title,
       modelRole: "flagship",
@@ -385,7 +436,12 @@ async function executeRun(
       inputTokens: flagshipUsage.inputTokens,
       outputTokens: flagshipUsage.outputTokens,
       totalTokens: totalTokens(flagshipUsage),
-      estimatedCostUsd: estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage),
+      cost: flagshipCost,
+      estimatedCostUsd: flagshipCost,
+      invariantCount: 0,
+      missingInvariants: 0,
+      contradictions: 0,
+      driftScore: 0,
       durationMs: flagshipResult.durationMs,
       qualityScore: flagshipResult.qualityScore,
       testsPassed,
@@ -393,6 +449,12 @@ async function executeRun(
     });
 
     fullHistory.push(buildHistoryEntry(task, flagshipResult.text));
+    invariantMemory = mergeInvariantFacts(invariantMemory, extractInvariants(fullHistory[fullHistory.length - 1] ?? "").facts);
+
+    const flagshipStepRecord = stepRecords[stepRecords.length - 1];
+    if (flagshipStepRecord) {
+      flagshipStepRecord.invariantCount = invariantMemory.length;
+    }
 
     if (config.mode === "cascade" && clients.gate && config.gateModel) {
       const gateStartedAt = performance.now();
@@ -400,6 +462,7 @@ async function executeRun(
       const gateResult = await summarizeWithGate({
         history: fullHistory.join("\n\n"),
         latestChanges: flagshipResult.text,
+        previousInvariants: invariantMemory,
         client: clients.gate,
       });
       const gateDurationMs = Math.round(performance.now() - gateStartedAt);
@@ -407,10 +470,13 @@ async function executeRun(
         inputTokens: estimateTokens(gateInputText),
         outputTokens: estimateTokens(JSON.stringify(gateResult.summary)),
       };
+      const driftReport = buildDriftReport(formatGateSummary(gateResult.draftSummary), invariantMemory);
+      const gateCost = estimateCostUsd(config.provider, config.gateModel, gateUsage);
 
       stepRecords.push({
         config: config.name,
         runId,
+        step: task.number,
         stepNumber: task.number,
         stepTitle: `${task.title} (gate)`,
         modelRole: "gate",
@@ -420,7 +486,12 @@ async function executeRun(
         inputTokens: gateUsage.inputTokens,
         outputTokens: gateUsage.outputTokens,
         totalTokens: totalTokens(gateUsage),
-        estimatedCostUsd: estimateCostUsd(config.provider, config.gateModel, gateUsage),
+        cost: gateCost,
+        estimatedCostUsd: gateCost,
+        invariantCount: invariantMemory.length,
+        missingInvariants: driftReport.missingInvariants,
+        contradictions: driftReport.contradictions,
+        driftScore: driftReport.driftScore,
         durationMs: gateDurationMs,
         qualityScore: flagshipResult.qualityScore,
         testsPassed,
@@ -434,9 +505,13 @@ async function executeRun(
   }
 
   const flagshipSteps = stepRecords.filter((step) => step.modelRole === "flagship");
+  const iterationAggregates = aggregateIterations(stepRecords);
   const totalInputTokens = stepRecords.reduce((sum, step) => sum + step.inputTokens, 0);
   const totalOutputTokens = stepRecords.reduce((sum, step) => sum + step.outputTokens, 0);
   const totalCostUsd = stepRecords.reduce((sum, step) => sum + step.estimatedCostUsd, 0);
+  const totalMissingInvariants = iterationAggregates.reduce((sum, step) => sum + step.missingInvariants, 0);
+  const totalContradictions = iterationAggregates.reduce((sum, step) => sum + step.contradictions, 0);
+  const totalDriftScore = iterationAggregates.reduce((sum, step) => sum + step.driftScore, 0);
 
   return {
     steps: stepRecords,
@@ -451,6 +526,11 @@ async function executeRun(
       totalOutputTokens,
       totalTokens: totalInputTokens + totalOutputTokens,
       totalCostUsd: Math.round(totalCostUsd * 100000000) / 100000000,
+      meanInvariantCount: roundNumber(average(iterationAggregates.map((step) => step.invariantCount)), 2),
+      totalMissingInvariants,
+      totalContradictions,
+      totalDriftScore,
+      meanDriftScore: roundNumber(average(iterationAggregates.map((step) => step.driftScore)), 2),
       meanQualityScore: Math.round(average(flagshipSteps.map((step) => step.qualityScore)) * 100) / 100,
       testsPassed,
       usedMockClients: clients.flagship.mode === "mock" || clients.gate?.mode === "mock",
@@ -478,6 +558,10 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
     const cost = summarizeNumbers(configRuns.map((run) => run.totalCostUsd));
     const tokens = summarizeNumbers(configRuns.map((run) => run.totalTokens));
     const quality = summarizeNumbers(configRuns.map((run) => run.meanQualityScore));
+    const drift = summarizeNumbers(configRuns.map((run) => run.meanDriftScore));
+    const invariantCount = summarizeNumbers(configRuns.map((run) => run.meanInvariantCount));
+    const missingInvariants = summarizeNumbers(configRuns.map((run) => run.totalMissingInvariants));
+    const contradictions = summarizeNumbers(configRuns.map((run) => run.totalContradictions));
     const baselineConfigName = representativeRun ? baselineConfigByProvider[representativeRun.provider] : undefined;
     const matchingBaselineRuns = baselineConfigName ? grouped.get(baselineConfigName) ?? [] : [];
     const baselineCostMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalCostUsd)).mean;
@@ -493,6 +577,10 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
       mean_tokens: tokens.mean,
       median_tokens: tokens.median,
       stddev_tokens: tokens.stddev,
+      mean_invariant_count: invariantCount.mean,
+      mean_missing_invariants: missingInvariants.mean,
+      mean_contradictions: contradictions.mean,
+      mean_drift_score: drift.mean,
       mean_quality: quality.mean,
       median_quality: quality.median,
       stddev_quality: quality.stddev,
@@ -510,13 +598,61 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
   });
 }
 
+function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCurveDatum[] {
+  const perRunStep = new Map<string, {
+    label: string;
+    runId: number;
+    stepNumber: number;
+    cost: number;
+    driftScore: number;
+  }>();
+
+  for (const record of stepRecords) {
+    const key = `${record.config}::${record.runId}::${record.stepNumber}`;
+    const existing = perRunStep.get(key) ?? {
+      label: record.config,
+      runId: record.runId,
+      stepNumber: record.stepNumber,
+      cost: 0,
+      driftScore: 0,
+    };
+
+    existing.cost = roundNumber(existing.cost + record.estimatedCostUsd, 8);
+    existing.driftScore = Math.max(existing.driftScore, record.driftScore);
+    perRunStep.set(key, existing);
+  }
+
+  const grouped = new Map<string, Array<{ cost: number; driftScore: number }>>();
+  for (const value of perRunStep.values()) {
+    const key = `${value.label}::${value.stepNumber}`;
+    const existing = grouped.get(key) ?? [];
+    existing.push({
+      cost: value.cost,
+      driftScore: value.driftScore,
+    });
+    grouped.set(key, existing);
+  }
+
+  return [...grouped.entries()]
+    .map(([key, values]) => {
+      const [label, stepNumberText] = key.split("::");
+      return {
+        label,
+        stepNumber: Number(stepNumberText),
+        meanCostUsd: roundNumber(average(values.map((item) => item.cost)), 8),
+        meanDriftScore: roundNumber(average(values.map((item) => item.driftScore)), 4),
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label) || left.stepNumber - right.stepNumber);
+}
+
 function buildMarkdownSummary(
   summaryRows: Array<Record<string, unknown>>,
   outputFolder: string,
   tests: TestCacheResult,
 ): string {
   const lines = [
-    "# RazorCascade Study Report",
+    "# RazorCascade Memory Reliability Report",
     "",
     `Generated: ${new Date().toISOString()}`,
     `Output folder: ${outputFolder}`,
@@ -524,13 +660,13 @@ function buildMarkdownSummary(
     "",
     "## Configuration Summary",
     "",
-    "| Config | Mean Cost (USD) | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Config | Mean Cost (USD) | Mean Drift | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
 
   for (const row of summaryRows) {
     lines.push(
-      `| ${row.config} | ${row.mean_cost_usd} | ${row.mean_tokens} | ${row.mean_quality} | ${row.cost_savings_vs_baseline_pct ?? "n/a"} | ${row.token_savings_vs_baseline_pct ?? "n/a"} |`,
+      `| ${row.config} | ${row.mean_cost_usd} | ${row.mean_drift_score} | ${row.mean_tokens} | ${row.mean_quality} | ${row.cost_savings_vs_baseline_pct ?? "n/a"} | ${row.token_savings_vs_baseline_pct ?? "n/a"} |`,
     );
   }
 
@@ -591,11 +727,13 @@ export async function runStudy(options: {
   }
 
   const summaryRecords = buildSummaryRecords(runRecords);
+  const dashboardCurveData = buildDashboardCurveData(stepRecords);
   const dashboardData: DashboardDatum[] = summaryRecords.map((row) => ({
     label: String(row.config),
     meanCostUsd: Number(row.mean_cost_usd),
     meanTokens: Number(row.mean_tokens),
     meanQuality: Number(row.mean_quality),
+    meanDriftScore: Number(row.mean_drift_score),
     costSavingsVsBaselinePct:
       row.cost_savings_vs_baseline_pct === null ? null : Number(row.cost_savings_vs_baseline_pct),
     tokenSavingsVsBaselinePct:
@@ -605,7 +743,7 @@ export async function runStudy(options: {
   await writeCsv(join(outputFolder, "steps.csv"), stepRecords as unknown as Array<Record<string, unknown>>);
   await writeCsv(join(outputFolder, "runs.csv"), runRecords as unknown as Array<Record<string, unknown>>);
   await Bun.write(join(outputFolder, "summary.json"), JSON.stringify(summaryRecords, null, 2));
-  await writeHtmlDashboard(join(outputFolder, "dashboard.html"), dashboardData);
+  await writeHtmlDashboard(join(outputFolder, "dashboard.html"), dashboardData, dashboardCurveData);
   await Bun.write(join(outputFolder, "report.md"), buildMarkdownSummary(summaryRecords, outputFolder, cachedTests));
 
   return {
@@ -620,7 +758,7 @@ function buildStudyProgram(): Command {
   const program = new Command();
   program
     .name("study")
-    .description("Run the RazorCascade cost-and-quality study.")
+    .description("Run the RazorCascade cost, drift, and quality study.")
     .option("--config <name>", "Named configuration from config.json.")
     .option("--configs <names>", "Comma-separated list of named configurations from config.json.")
     .option("--all", "Run every configuration in config.json.", false)
@@ -658,6 +796,7 @@ function buildStudyProgram(): Command {
         meanCostUsd: Number(row.mean_cost_usd),
         meanTokens: Number(row.mean_tokens),
         meanQuality: Number(row.mean_quality),
+        meanDriftScore: Number(row.mean_drift_score),
         costSavingsVsBaselinePct:
           row.cost_savings_vs_baseline_pct === null ? null : Number(row.cost_savings_vs_baseline_pct),
         tokenSavingsVsBaselinePct:
@@ -671,6 +810,9 @@ function buildStudyProgram(): Command {
       console.log("");
       console.log("Mean tokens");
       console.log(renderTextBarChart(dashboardData, "meanTokens"));
+      console.log("");
+      console.log("Mean drift");
+      console.log(renderTextBarChart(dashboardData, "meanDriftScore"));
     });
 
   return program;

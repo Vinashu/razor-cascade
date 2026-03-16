@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import type { ModelClient } from "./models.ts";
 
 export const GateSummarySchema = z.object({
@@ -7,6 +8,7 @@ export const GateSummarySchema = z.object({
   decisions: z.array(z.string()).min(1).max(6),
   risks: z.array(z.string()).max(3),
   snippets: z.array(z.string()).max(4),
+  invariants: z.array(z.string()).max(20).default([]),
 });
 
 export type GateSummary = z.infer<typeof GateSummarySchema>;
@@ -17,8 +19,10 @@ Given the full conversation history + latest code/output, output ONLY valid JSON
   "goal": "1-sentence current project goal",
   "decisions": ["key architectural decisions", "..."],
   "risks": ["max 3 open questions or risks"],
-  "snippets": ["only the most relevant code blocks, total <200 tokens"]
+  "snippets": ["only the most relevant code blocks, total <200 tokens"],
+  "invariants": ["stable architectural facts that must survive future gates"]
 }
+Preserve prior invariant memory exactly when possible.
 Max 600 tokens total. Be concise, faithful, and eliminate redundancy.`;
 
 function truncateWords(text: string, maxWords: number): string {
@@ -89,12 +93,29 @@ function extractSnippets(text: string): string[] {
   return unique(meaningfulLines.slice(-3)).map((line) => truncateWords(line, 24));
 }
 
-export function buildGatePrompt(history: string, latestChanges: string): string {
+function finalizeGateSummary(summary: GateSummary, sourceText: string, previousInvariants: string[]): GateSummary {
+  return GateSummarySchema.parse({
+    ...summary,
+    invariants: mergeInvariantFacts(previousInvariants, extractInvariants(sourceText).facts),
+  });
+}
+
+export function buildGatePrompt(history: string, latestChanges: string, previousInvariants: string[] = []): string {
+  const invariantBlock =
+    previousInvariants.length > 0
+      ? `Known invariants that must survive:
+${previousInvariants.map((fact) => `- ${fact}`).join("\n")}
+
+`
+      : "";
+
   return `Conversation history:
 ${history.trim() || "(empty)"}
 
 Latest changes or output:
-${latestChanges.trim() || "(empty)"}`;
+${latestChanges.trim() || "(empty)"}
+
+${invariantBlock}`.trim();
 }
 
 export function formatGateSummary(summary: GateSummary): string {
@@ -103,10 +124,11 @@ export function formatGateSummary(summary: GateSummary): string {
     `Decisions: ${summary.decisions.join("; ")}`,
     `Risks: ${summary.risks.join("; ") || "None noted."}`,
     `Snippets: ${summary.snippets.join(" | ") || "None captured."}`,
+    `Invariants: ${summary.invariants.join("; ") || "None captured."}`,
   ].join("\n");
 }
 
-export function heuristicGateSummary(history: string, latestChanges: string): GateSummary {
+export function heuristicGateSummary(history: string, latestChanges: string, previousInvariants: string[] = []): GateSummary {
   const combined = `${history}\n${latestChanges}`.trim();
   const lines = combined
     .split(/\r?\n/)
@@ -128,6 +150,7 @@ export function heuristicGateSummary(history: string, latestChanges: string): Ga
     3,
   );
   const snippets = extractSnippets(combined);
+  const invariants = mergeInvariantFacts(previousInvariants, extractInvariants(combined).facts);
 
   return GateSummarySchema.parse({
     goal: truncateWords(goalLine, 18),
@@ -140,6 +163,7 @@ export function heuristicGateSummary(history: string, latestChanges: string): Ga
         ? risks
         : ["Provider pricing can drift over time and should be verified before publication."],
     snippets,
+    invariants,
   });
 }
 
@@ -156,9 +180,11 @@ export function parseGateSummary(rawText: string): GateSummary {
 export async function summarizeWithGate(options: {
   history: string;
   latestChanges: string;
+  previousInvariants?: string[];
   client: ModelClient;
-}): Promise<{ summary: GateSummary; rawText: string }> {
-  const prompt = buildGatePrompt(options.history, options.latestChanges);
+}): Promise<{ summary: GateSummary; draftSummary: GateSummary; rawText: string }> {
+  const previousInvariants = options.previousInvariants ?? [];
+  const prompt = buildGatePrompt(options.history, options.latestChanges, previousInvariants);
   const response = await options.client.generateText({
     system: GATE_SYSTEM_PROMPT,
     prompt,
@@ -167,15 +193,20 @@ export async function summarizeWithGate(options: {
       kind: "gate",
     },
   });
+  const sourceText = `${options.history}\n${options.latestChanges}`;
 
   try {
+    const draftSummary = parseGateSummary(response.text);
     return {
-      summary: parseGateSummary(response.text),
+      summary: finalizeGateSummary(draftSummary, sourceText, previousInvariants),
+      draftSummary,
       rawText: response.text,
     };
   } catch {
+    const draftSummary = heuristicGateSummary(options.history, options.latestChanges, previousInvariants);
     return {
-      summary: heuristicGateSummary(options.history, options.latestChanges),
+      summary: finalizeGateSummary(draftSummary, sourceText, previousInvariants),
+      draftSummary,
       rawText: response.text,
     };
   }

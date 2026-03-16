@@ -18,8 +18,16 @@ export interface DashboardDatum {
   meanCostUsd: number;
   meanTokens: number;
   meanQuality: number;
+  meanDriftScore: number;
   costSavingsVsBaselinePct?: number | null;
   tokenSavingsVsBaselinePct?: number | null;
+}
+
+export interface DashboardCurveDatum {
+  label: string;
+  stepNumber: number;
+  meanCostUsd: number;
+  meanDriftScore: number;
 }
 
 export interface NumericSummary {
@@ -192,7 +200,7 @@ export async function writeCsv(filePath: string, rows: Array<Record<string, unkn
 
 export function renderTextBarChart(
   data: DashboardDatum[],
-  metric: "meanCostUsd" | "meanTokens" | "meanQuality",
+  metric: "meanCostUsd" | "meanTokens" | "meanQuality" | "meanDriftScore",
 ): string {
   if (data.length === 0) {
     return "";
@@ -217,12 +225,115 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[]): Promise<void> {
+function renderLineChart(
+  data: DashboardCurveDatum[],
+  metric: "meanCostUsd" | "meanDriftScore",
+): string {
+  if (data.length === 0) {
+    return "<p>No step data available.</p>";
+  }
+
+  const grouped = new Map<string, DashboardCurveDatum[]>();
+  for (const item of data) {
+    const existing = grouped.get(item.label) ?? [];
+    existing.push(item);
+    grouped.set(item.label, existing);
+  }
+
+  const series = Array.from(grouped.entries()).map(([label, items]) => ({
+    label,
+    items: items.sort((left, right) => left.stepNumber - right.stepNumber),
+  }));
+  const allSteps = Array.from(new Set(data.map((item) => item.stepNumber))).sort((left, right) => left - right);
+  const maxStep = Math.max(...allSteps, 1);
+  const maxValue = Math.max(...data.map((item) => item[metric]), 1);
+  const width = 920;
+  const height = 280;
+  const padding = 42;
+  const palette = [
+    ["#cc5803", "#f4a259"],
+    ["#264653", "#2a9d8f"],
+    ["#8f2d56", "#d46a6a"],
+    ["#3a86ff", "#7cc6fe"],
+    ["#6a4c93", "#b8a1d9"],
+  ];
+
+  const xForStep = (step: number): number =>
+    padding + ((step - 1) / Math.max(maxStep - 1, 1)) * (width - padding * 2);
+  const yForValue = (value: number): number =>
+    height - padding - (value / maxValue) * (height - padding * 2);
+
+  const gridLines = Array.from({ length: 5 }, (_, index) => {
+    const ratio = index / 4;
+    const y = padding + ratio * (height - padding * 2);
+    const value = roundNumber(maxValue * (1 - ratio), metric === "meanCostUsd" ? 4 : 2);
+    return `<g>
+      <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="${padding - 10}" y="${y + 4}" text-anchor="end" fill="#5e6472" font-size="11">${value}</text>
+    </g>`;
+  }).join("");
+
+  const xLabels = allSteps
+    .map((step) => `<text x="${xForStep(step)}" y="${height - 12}" text-anchor="middle" fill="#5e6472" font-size="11">${step}</text>`)
+    .join("");
+
+  const seriesMarkup = series
+    .map((entry, index) => {
+      const [start, end] = palette[index % palette.length];
+      const points = entry.items.map((item) => `${xForStep(item.stepNumber)},${yForValue(item[metric])}`).join(" ");
+      const gradientId = `chart-${metric}-${index}`;
+      const pointMarkup = entry.items
+        .map(
+          (item) => `<circle cx="${xForStep(item.stepNumber)}" cy="${yForValue(item[metric])}" r="4.5" fill="${end}">
+            <title>${escapeHtml(entry.label)} step ${item.stepNumber}: ${roundNumber(item[metric], metric === "meanCostUsd" ? 4 : 2)}</title>
+          </circle>`,
+        )
+        .join("");
+
+      return `<g>
+        <defs>
+          <linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="${start}" />
+            <stop offset="100%" stop-color="${end}" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#${gradientId})" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+        ${pointMarkup}
+      </g>`;
+    })
+    .join("");
+
+  const legend = series
+    .map((entry, index) => {
+      const [start] = palette[index % palette.length];
+      return `<span><i style="background:${start}"></i>${escapeHtml(entry.label)}</span>`;
+    })
+    .join("");
+
+  return `<div class="chart-wrap">
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${metric === "meanCostUsd" ? "Iteration cost curve" : "Iteration drift curve"}">
+      ${gridLines}
+      <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="rgba(20, 33, 61, 0.18)" />
+      <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="rgba(20, 33, 61, 0.18)" />
+      ${seriesMarkup}
+      ${xLabels}
+    </svg>
+    <div class="legend">${legend}</div>
+  </div>`;
+}
+
+export async function writeHtmlDashboard(
+  filePath: string,
+  data: DashboardDatum[],
+  curveData: DashboardCurveDatum[],
+): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
   const maxCost = Math.max(...data.map((item) => item.meanCostUsd));
   const maxTokens = Math.max(...data.map((item) => item.meanTokens));
+  const maxDrift = Math.max(...data.map((item) => item.meanDriftScore));
   const costScaleMax = maxCost > 0 ? maxCost : 1;
   const tokenScaleMax = maxTokens > 0 ? maxTokens : 1;
+  const driftScaleMax = maxDrift > 0 ? maxDrift : 1;
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -295,6 +406,38 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
         margin-top: 26px;
       }
 
+      .chart-wrap {
+        margin-top: 18px;
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend i {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+
       .label {
         display: flex;
         justify-content: space-between;
@@ -325,6 +468,10 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
         background: linear-gradient(90deg, #588157, #bcce98);
       }
 
+      .bar.drift {
+        background: linear-gradient(90deg, #8f2d56, #d46a6a);
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -341,18 +488,27 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
   <body>
     <main>
       <h1>RazorCascade Dashboard</h1>
-      <p>Mean cost, tokens, and quality by configuration.</p>
+      <p>Mean cost, drift, tokens, and quality by configuration.</p>
       <section class="grid">
         ${data
           .map(
             (item) => `<article class="card">
           <div class="label"><span>${escapeHtml(item.label)}</span><span>${item.costSavingsVsBaselinePct ?? "n/a"}% cost savings</span></div>
           <p>$${item.meanCostUsd.toFixed(4)} mean cost</p>
+          <p>${item.meanDriftScore.toFixed(2)} mean drift</p>
           <p>${Math.round(item.meanTokens).toLocaleString()} mean tokens</p>
           <p>${item.meanQuality.toFixed(2)} / 10 mean quality</p>
         </article>`,
           )
           .join("")}
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Iteration Cost Curve</h2>
+        ${renderLineChart(curveData, "meanCostUsd")}
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Iteration Drift Curve</h2>
+        ${renderLineChart(curveData, "meanDriftScore")}
       </section>
       <section class="card" style="margin-top: 22px;">
         <h2>Mean Cost</h2>
@@ -362,6 +518,19 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
               (item) => `<div>
             <div class="label"><span>${escapeHtml(item.label)}</span><span>$${item.meanCostUsd.toFixed(4)}</span></div>
             <div class="bar-shell"><div class="bar" style="width:${Math.max(4, (item.meanCostUsd / costScaleMax) * 100)}%"></div></div>
+          </div>`,
+            )
+            .join("")}
+        </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Mean Drift</h2>
+        <div class="bars">
+          ${data
+            .map(
+              (item) => `<div>
+            <div class="label"><span>${escapeHtml(item.label)}</span><span>${item.meanDriftScore.toFixed(2)}</span></div>
+            <div class="bar-shell"><div class="bar drift" style="width:${Math.max(4, (item.meanDriftScore / driftScaleMax) * 100)}%"></div></div>
           </div>`,
             )
             .join("")}
@@ -400,6 +569,7 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
             <tr>
               <th>Config</th>
               <th>Mean Cost</th>
+              <th>Mean Drift</th>
               <th>Mean Tokens</th>
               <th>Mean Quality</th>
               <th>Cost Savings</th>
@@ -412,6 +582,7 @@ export async function writeHtmlDashboard(filePath: string, data: DashboardDatum[
                 (item) => `<tr>
               <td>${escapeHtml(item.label)}</td>
               <td>$${item.meanCostUsd.toFixed(4)}</td>
+              <td>${item.meanDriftScore.toFixed(2)}</td>
               <td>${Math.round(item.meanTokens).toLocaleString()}</td>
               <td>${item.meanQuality.toFixed(2)}</td>
               <td>${item.costSavingsVsBaselinePct ?? "n/a"}%</td>
