@@ -243,7 +243,15 @@ async function createOpenAiClient(options: CreateModelClientOptions): Promise<Mo
     model: options.model,
     mode: "live",
     async generateText(request) {
-      const response = await client.responses.create({
+      const responsePayload: {
+        model: string;
+        input: Array<{
+          role: "system" | "user";
+          content: Array<{ type: "input_text"; text: string }>;
+        }>;
+        max_output_tokens: number;
+        temperature?: number;
+      } = {
         model: options.model,
         input: [
           {
@@ -255,9 +263,15 @@ async function createOpenAiClient(options: CreateModelClientOptions): Promise<Mo
             content: [{ type: "input_text", text: request.prompt }],
           },
         ],
-        temperature: request.temperature ?? 0.2,
         max_output_tokens: request.maxOutputTokens ?? 1_200,
-      });
+      };
+
+      // Some newer OpenAI models reject temperature entirely.
+      if (!/^gpt-5/i.test(options.model)) {
+        responsePayload.temperature = request.temperature ?? 0.2;
+      }
+
+      const response = await client.responses.create(responsePayload);
 
       const text = extractOpenAiResponseText(response as unknown as Record<string, unknown>);
       return {
