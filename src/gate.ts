@@ -8,7 +8,7 @@ export const GateSummarySchema = z.object({
   decisions: z.array(z.string()).min(1).max(6),
   risks: z.array(z.string()).max(3),
   snippets: z.array(z.string()).max(4),
-  invariants: z.array(z.string()).max(20).default([]),
+  invariants: z.array(z.string()).default([]),
 });
 
 export type GateSummary = z.infer<typeof GateSummarySchema>;

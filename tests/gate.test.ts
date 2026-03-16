@@ -23,4 +23,16 @@ describe("gate", () => {
     expect(parsed.decisions).toContain("Use Bun");
     expect(parsed.invariants).toContain("storage file = .taskforge/tasks.json");
   });
+
+  test("preserves larger invariant sets without schema overflow", () => {
+    const previousInvariants = Array.from({ length: 32 }, (_, index) => `fact ${index + 1} = value ${index + 1}`);
+    const summary = heuristicGateSummary(
+      "Use Bun for runtime and keep JSON persistence in a typed store.",
+      "storage file = .taskforge/tasks.json",
+      previousInvariants,
+    );
+
+    expect(summary.invariants.length).toBeGreaterThanOrEqual(32);
+    expect(summary.invariants).toContain("fact 32 = value 32");
+  });
 });
