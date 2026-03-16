@@ -207,12 +207,14 @@ export function renderTextBarChart(
   }
 
   const values = data.map((item) => item[metric]);
-  const maxValue = Math.max(...values, 1);
+  const maxValue = Math.max(...values);
+  const allZero = maxValue === 0;
   return data
     .map((item) => {
-      const width = Math.max(1, Math.round((item[metric] / maxValue) * 24));
+      const width = allZero ? 0 : Math.max(1, Math.round((item[metric] / maxValue) * 24));
       const bar = "#".repeat(width);
-      return `${item.label.padEnd(14)} ${bar.padEnd(24)} ${roundNumber(item[metric], 2)}`;
+      const suffix = metric === "meanDriftScore" && allZero ? " stable" : "";
+      return `${item.label.padEnd(14)} ${bar.padEnd(24)} ${roundNumber(item[metric], 2)}${suffix}`;
     })
     .join("\n");
 }
@@ -223,6 +225,184 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+interface ChartScale {
+  min: number;
+  max: number;
+  ticks: number[];
+  allZero: boolean;
+}
+
+function metricDescription(metric: "meanCostUsd" | "meanDriftScore"): string {
+  return metric === "meanCostUsd"
+    ? "Mean spend per iteration across runs."
+    : "Mean drift score per iteration across runs.";
+}
+
+function metricUnit(metric: "meanCostUsd" | "meanDriftScore"): string {
+  return metric === "meanCostUsd" ? "USD" : "score";
+}
+
+function formatMetricValue(metric: "meanCostUsd" | "meanDriftScore", value: number, withUnit = false): string {
+  if (metric === "meanCostUsd") {
+    return withUnit ? `$${value.toFixed(4)}` : value.toFixed(4);
+  }
+
+  return value.toFixed(2);
+}
+
+function buildTickValues(min: number, max: number, tickCount = 5): number[] {
+  if (tickCount <= 1) {
+    return [max];
+  }
+
+  const step = (max - min) / (tickCount - 1);
+  return Array.from({ length: tickCount }, (_, index) => max - step * index);
+}
+
+function resolveChartScale(
+  data: DashboardCurveDatum[],
+  metric: "meanCostUsd" | "meanDriftScore",
+): ChartScale {
+  const values = data.map((item) => item[metric]);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+
+  if (maxValue === 0 && minValue === 0) {
+    return {
+      min: 0,
+      max: 0,
+      ticks: [0],
+      allZero: true,
+    };
+  }
+
+  if (maxValue === minValue) {
+    const padding = metric === "meanCostUsd"
+      ? Math.max(maxValue * 0.2, 0.001)
+      : Math.max(maxValue * 0.2, 0.25);
+    const min = Math.max(0, minValue - padding);
+    const max = maxValue + padding;
+    return {
+      min,
+      max,
+      ticks: buildTickValues(min, max),
+      allZero: false,
+    };
+  }
+
+  const range = maxValue - minValue;
+  let min = minValue - range * 0.18;
+  let max = maxValue + range * 0.18;
+
+  if (minValue >= 0) {
+    min = Math.max(0, min);
+  }
+
+  if (metric === "meanDriftScore" && minValue === 0) {
+    min = 0;
+  }
+
+  return {
+    min,
+    max,
+    ticks: buildTickValues(min, max),
+    allZero: false,
+  };
+}
+
+function renderChartLegend(
+  series: Array<{ label: string }>,
+  palette: string[][],
+): string {
+  return series
+    .map((entry, index) => {
+      const [start] = palette[index % palette.length];
+      return `<span><i style="background:${start}"></i>${escapeHtml(entry.label)}</span>`;
+    })
+    .join("");
+}
+
+function renderZeroStateLineChart(
+  data: DashboardCurveDatum[],
+  metric: "meanCostUsd" | "meanDriftScore",
+  palette: string[][],
+): string {
+  const grouped = new Map<string, DashboardCurveDatum[]>();
+  for (const item of data) {
+    const existing = grouped.get(item.label) ?? [];
+    existing.push(item);
+    grouped.set(item.label, existing);
+  }
+
+  const series = Array.from(grouped.entries()).map(([label, items]) => ({
+    label,
+    items: items.sort((left, right) => left.stepNumber - right.stepNumber),
+  }));
+  const allSteps = Array.from(new Set(data.map((item) => item.stepNumber))).sort((left, right) => left - right);
+  const maxStep = Math.max(...allSteps, 1);
+  const width = 920;
+  const height = 260;
+  const padding = 42;
+  const baselineY = 136;
+  const xForStep = (step: number): number =>
+    padding + ((step - 1) / Math.max(maxStep - 1, 1)) * (width - padding * 2);
+
+  const seriesMarkup = series
+    .map((entry, index) => {
+      const [start, end] = palette[index % palette.length];
+      const points = entry.items.map((item) => `${xForStep(item.stepNumber)},${baselineY}`).join(" ");
+      const gradientId = `chart-${metric}-zero-${index}`;
+      const pointMarkup = entry.items
+        .map(
+          (item) => `<circle cx="${xForStep(item.stepNumber)}" cy="${baselineY}" r="5" fill="${end}" stroke="white" stroke-width="1.5">
+            <title>${escapeHtml(entry.label)} step ${item.stepNumber}: ${formatMetricValue(metric, item[metric], false)}</title>
+          </circle>`,
+        )
+        .join("");
+
+      return `<g>
+        <defs>
+          <linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="${start}" />
+            <stop offset="100%" stop-color="${end}" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#${gradientId})" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+        ${pointMarkup}
+      </g>`;
+    })
+    .join("");
+
+  const xLabels = allSteps
+    .map((step) => `<text x="${xForStep(step)}" y="${height - 12}" text-anchor="middle" fill="#5e6472" font-size="11">${step}</text>`)
+    .join("");
+
+  const zeroMessage = metric === "meanDriftScore"
+    ? "No drift detected across compared iterations."
+    : "No variation detected across compared iterations.";
+  const zeroExplanation = metric === "meanDriftScore"
+    ? "Every recorded step stayed at drift score 0, so the timeline is shown as a stable zero baseline."
+    : "Every recorded step landed on the same value, so the timeline is shown as a stable baseline.";
+
+  return `<div class="chart-wrap">
+    <div class="chart-meta">
+      <span>${escapeHtml(metricDescription(metric))}</span>
+      <span>All values = 0 ${escapeHtml(metricUnit(metric))}</span>
+    </div>
+    <div class="chart-note stable">
+      <strong>${zeroMessage}</strong>
+      <span>${zeroExplanation}</span>
+    </div>
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${metric === "meanCostUsd" ? "Iteration cost curve" : "Iteration drift curve"} zero state">
+      <line x1="${padding}" y1="${baselineY}" x2="${width - padding}" y2="${baselineY}" stroke="rgba(20, 33, 61, 0.14)" stroke-dasharray="8 8" />
+      <text x="${padding - 10}" y="${baselineY + 4}" text-anchor="end" fill="#5e6472" font-size="11">0</text>
+      ${seriesMarkup}
+      ${xLabels}
+    </svg>
+    <div class="legend">${renderChartLegend(series, palette)}</div>
+  </div>`;
 }
 
 function renderLineChart(
@@ -246,7 +426,7 @@ function renderLineChart(
   }));
   const allSteps = Array.from(new Set(data.map((item) => item.stepNumber))).sort((left, right) => left - right);
   const maxStep = Math.max(...allSteps, 1);
-  const maxValue = Math.max(...data.map((item) => item[metric]), 1);
+  const scale = resolveChartScale(data, metric);
   const width = 920;
   const height = 280;
   const padding = 42;
@@ -258,18 +438,20 @@ function renderLineChart(
     ["#6a4c93", "#b8a1d9"],
   ];
 
+  if (scale.allZero) {
+    return renderZeroStateLineChart(data, metric, palette);
+  }
+
   const xForStep = (step: number): number =>
     padding + ((step - 1) / Math.max(maxStep - 1, 1)) * (width - padding * 2);
   const yForValue = (value: number): number =>
-    height - padding - (value / maxValue) * (height - padding * 2);
+    height - padding - ((value - scale.min) / Math.max(scale.max - scale.min, 0.000001)) * (height - padding * 2);
 
-  const gridLines = Array.from({ length: 5 }, (_, index) => {
-    const ratio = index / 4;
-    const y = padding + ratio * (height - padding * 2);
-    const value = roundNumber(maxValue * (1 - ratio), metric === "meanCostUsd" ? 4 : 2);
+  const gridLines = scale.ticks.map((value) => {
+    const y = yForValue(value);
     return `<g>
       <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
-      <text x="${padding - 10}" y="${y + 4}" text-anchor="end" fill="#5e6472" font-size="11">${value}</text>
+      <text x="${padding - 10}" y="${y + 4}" text-anchor="end" fill="#5e6472" font-size="11">${formatMetricValue(metric, value, false)}</text>
     </g>`;
   }).join("");
 
@@ -285,7 +467,7 @@ function renderLineChart(
       const pointMarkup = entry.items
         .map(
           (item) => `<circle cx="${xForStep(item.stepNumber)}" cy="${yForValue(item[metric])}" r="4.5" fill="${end}">
-            <title>${escapeHtml(entry.label)} step ${item.stepNumber}: ${roundNumber(item[metric], metric === "meanCostUsd" ? 4 : 2)}</title>
+            <title>${escapeHtml(entry.label)} step ${item.stepNumber}: ${formatMetricValue(metric, item[metric], true)}</title>
           </circle>`,
         )
         .join("");
@@ -303,14 +485,11 @@ function renderLineChart(
     })
     .join("");
 
-  const legend = series
-    .map((entry, index) => {
-      const [start] = palette[index % palette.length];
-      return `<span><i style="background:${start}"></i>${escapeHtml(entry.label)}</span>`;
-    })
-    .join("");
-
   return `<div class="chart-wrap">
+    <div class="chart-meta">
+      <span>${escapeHtml(metricDescription(metric))}</span>
+      <span>Zoomed range: ${formatMetricValue(metric, scale.min, false)} to ${formatMetricValue(metric, scale.max, false)} ${escapeHtml(metricUnit(metric))}</span>
+    </div>
     <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${metric === "meanCostUsd" ? "Iteration cost curve" : "Iteration drift curve"}">
       ${gridLines}
       <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="rgba(20, 33, 61, 0.18)" />
@@ -318,7 +497,55 @@ function renderLineChart(
       ${seriesMarkup}
       ${xLabels}
     </svg>
-    <div class="legend">${legend}</div>
+    <div class="legend">${renderChartLegend(series, palette)}</div>
+  </div>`;
+}
+
+function renderDriftPanel(data: DashboardDatum[]): string {
+  if (data.length === 0) {
+    return "<p>No drift data available.</p>";
+  }
+
+  const allZero = data.every((item) => item.meanDriftScore === 0);
+  if (allZero) {
+    return `<div class="drift-panel">
+      <div class="chart-note stable">
+        <strong>No drift observed across compared configurations.</strong>
+        <span>Every configuration finished with mean drift 0.00, so memory remained stable for this experiment window.</span>
+      </div>
+      <div class="drift-grid">
+        ${data
+          .map(
+            (item) => `<article class="drift-stat">
+          <div>
+            <h3>${escapeHtml(item.label)}</h3>
+            <p>Mean drift score</p>
+          </div>
+          <div class="drift-value">0.00</div>
+          <span class="status-pill stable">Stable memory</span>
+        </article>`,
+          )
+          .join("")}
+      </div>
+    </div>`;
+  }
+
+  const maxDrift = Math.max(...data.map((item) => item.meanDriftScore), 0.000001);
+  return `<div class="drift-panel">
+    <p class="metric-hint">Higher is worse. Drift combines missing invariants and detected contradictions.</p>
+    <div class="bars">
+      ${data
+        .map(
+          (item) => `<div>
+        <div class="label"><span>${escapeHtml(item.label)}</span><span>${item.meanDriftScore.toFixed(2)}</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill ${item.meanDriftScore === 0 ? "stable" : "warning"}">${item.meanDriftScore === 0 ? "Stable memory" : "Drift detected"}</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:${Math.max(0, (item.meanDriftScore / maxDrift) * 100)}%"></div></div>
+      </div>`,
+        )
+        .join("")}
+    </div>
   </div>`;
 }
 
@@ -330,10 +557,8 @@ export async function writeHtmlDashboard(
   await mkdir(dirname(filePath), { recursive: true });
   const maxCost = Math.max(...data.map((item) => item.meanCostUsd));
   const maxTokens = Math.max(...data.map((item) => item.meanTokens));
-  const maxDrift = Math.max(...data.map((item) => item.meanDriftScore));
   const costScaleMax = maxCost > 0 ? maxCost : 1;
   const tokenScaleMax = maxTokens > 0 ? maxTokens : 1;
-  const driftScaleMax = maxDrift > 0 ? maxDrift : 1;
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -410,6 +635,34 @@ export async function writeHtmlDashboard(
         margin-top: 18px;
       }
 
+      .chart-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .chart-note {
+        display: grid;
+        gap: 4px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(42, 157, 143, 0.18);
+        background: linear-gradient(135deg, rgba(42, 157, 143, 0.08), rgba(255, 255, 255, 0.7));
+      }
+
+      .chart-note strong {
+        font-size: 1rem;
+      }
+
+      .chart-note.stable {
+        border-color: rgba(42, 157, 143, 0.2);
+      }
+
       svg {
         width: 100%;
         height: auto;
@@ -472,6 +725,71 @@ export async function writeHtmlDashboard(
         background: linear-gradient(90deg, #8f2d56, #d46a6a);
       }
 
+      .drift-panel {
+        display: grid;
+        gap: 18px;
+      }
+
+      .drift-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+      }
+
+      .drift-stat {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .drift-stat h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .drift-stat p {
+        margin: 4px 0 0;
+        font-size: 0.92rem;
+      }
+
+      .drift-value {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .status-pill.stable {
+        background: rgba(42, 157, 143, 0.14);
+        color: #1f6f66;
+      }
+
+      .status-pill.warning {
+        background: rgba(212, 106, 106, 0.15);
+        color: #8f2d56;
+      }
+
+      .metric-hint {
+        margin: 0;
+      }
+
+      .drift-row-meta {
+        margin-top: 8px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -525,16 +843,7 @@ export async function writeHtmlDashboard(
       </section>
       <section class="card" style="margin-top: 22px;">
         <h2>Mean Drift</h2>
-        <div class="bars">
-          ${data
-            .map(
-              (item) => `<div>
-            <div class="label"><span>${escapeHtml(item.label)}</span><span>${item.meanDriftScore.toFixed(2)}</span></div>
-            <div class="bar-shell"><div class="bar drift" style="width:${Math.max(4, (item.meanDriftScore / driftScaleMax) * 100)}%"></div></div>
-          </div>`,
-            )
-            .join("")}
-        </div>
+        ${renderDriftPanel(data)}
       </section>
       <section class="card" style="margin-top: 22px;">
         <h2>Mean Tokens</h2>
