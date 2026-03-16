@@ -271,6 +271,7 @@ async function loadConfigFile(configPath = resolve("config.json")): Promise<z.in
 
 async function resolveSelectedConfigs(options: {
   configName?: string;
+  configNames?: string[];
   all?: boolean;
   mode?: StudyMode;
   provider?: ProviderName;
@@ -301,6 +302,18 @@ async function resolveSelectedConfigs(options: {
 
   if (options.all) {
     return configFile.configs;
+  }
+
+  if (options.configNames && options.configNames.length > 0) {
+    return options.configNames.map((requestedName) => {
+      const selectedName = configAliases[requestedName] ?? requestedName;
+      const match = configFile.configs.find((config) => config.name === selectedName);
+      if (!match) {
+        throw new Error(`Unknown config "${requestedName}".`);
+      }
+
+      return match;
+    });
   }
 
   const requestedName = options.configName || "baseline";
@@ -533,6 +546,7 @@ function buildMarkdownSummary(
 
 export async function runStudy(options: {
   configName?: string;
+  configNames?: string[];
   all?: boolean;
   runs?: number;
   mode?: StudyMode;
@@ -550,6 +564,7 @@ export async function runStudy(options: {
 }> {
   const selectedConfigs = await resolveSelectedConfigs({
     configName: options.configName,
+    configNames: options.configNames,
     all: options.all,
     mode: options.mode,
     provider: options.provider,
@@ -607,6 +622,7 @@ function buildStudyProgram(): Command {
     .name("study")
     .description("Run the RazorCascade cost-and-quality study.")
     .option("--config <name>", "Named configuration from config.json.")
+    .option("--configs <names>", "Comma-separated list of named configurations from config.json.")
     .option("--all", "Run every configuration in config.json.", false)
     .option("--runs <number>", "Number of repeated runs per configuration.", "10")
     .option("--mode <mode>", "Ad hoc mode override: baseline or cascade.")
@@ -619,8 +635,13 @@ function buildStudyProgram(): Command {
     .action(async (options) => {
       const provider = options.provider ? ProviderSchema.parse(options.provider) : undefined;
       const mode = options.mode ? StudyModeSchema.parse(options.mode) : undefined;
+      const configNames =
+        typeof options.configs === "string"
+          ? options.configs.split(",").map((name: string) => name.trim()).filter(Boolean)
+          : undefined;
       const result = await runStudy({
         configName: options.config,
+        configNames,
         all: options.all,
         runs: Number(options.runs),
         mode,

@@ -147,6 +147,9 @@ bun run study --config gemini --runs 10
 
 # Every configured setup
 bun run study --all --runs 10
+
+# Just one matched pair in one output folder
+bun run study --configs baseline-openai,openai-mini --runs 10
 ```
 
 Helpful flags:
@@ -154,6 +157,7 @@ Helpful flags:
 - `--dry-run`: force deterministic mock clients even if API keys exist.
 - `--skip-tests`: skip local test execution during the study run.
 - `--output-dir <path>`: write artifacts to a custom folder.
+- `--configs <name1,name2,...>`: run a comma-separated set of named configs together so paired baselines and cascades land in the same report.
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 
 ## Gate Prompt
