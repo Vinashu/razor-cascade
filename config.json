@@ -3,7 +3,7 @@
   "outputDir": "experiments",
   "configs": [
     {
-      "name": "baseline",
+      "name": "baseline-openai",
       "description": "OpenAI flagship only with full conversation history at every step.",
       "mode": "baseline",
       "provider": "openai",
@@ -26,12 +26,26 @@
       "gateModel": "gpt-5-nano"
     },
     {
+      "name": "baseline-anthropic",
+      "description": "Anthropic flagship only with full conversation history at every step.",
+      "mode": "baseline",
+      "provider": "anthropic",
+      "flagshipModel": "claude-4-sonnet"
+    },
+    {
       "name": "anthropic",
       "description": "Anthropic cascade using Claude 4 Sonnet with Claude 4 Haiku as the gate.",
       "mode": "cascade",
       "provider": "anthropic",
       "flagshipModel": "claude-4-sonnet",
       "gateModel": "claude-4-haiku"
+    },
+    {
+      "name": "baseline-grok",
+      "description": "xAI flagship only with full conversation history at every step.",
+      "mode": "baseline",
+      "provider": "xai",
+      "flagshipModel": "grok-4"
     },
     {
       "name": "grok",

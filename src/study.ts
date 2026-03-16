@@ -278,6 +278,10 @@ async function resolveSelectedConfigs(options: {
   gateModel?: string;
 }): Promise<StudyConfig[]> {
   const configFile = await loadConfigFile();
+  const configAliases: Record<string, string> = {
+    baseline: "baseline-openai",
+    openai: "openai-mini",
+  };
 
   if (options.mode && options.provider) {
     return [
@@ -299,10 +303,11 @@ async function resolveSelectedConfigs(options: {
     return configFile.configs;
   }
 
-  const selectedName = options.configName || "baseline";
+  const requestedName = options.configName || "baseline";
+  const selectedName = configAliases[requestedName] ?? requestedName;
   const match = configFile.configs.find((config) => config.name === selectedName);
   if (!match) {
-    throw new Error(`Unknown config "${selectedName}".`);
+    throw new Error(`Unknown config "${requestedName}".`);
   }
 
   return [match];

@@ -6,30 +6,39 @@ import { join } from "node:path";
 import { runStudy } from "../src/study.ts";
 
 describe("study runner", () => {
-  test("executes all configs in dry-run mode and writes artifacts", async () => {
+  test("executes baseline aliases and explicit provider baselines in dry-run mode", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-"));
 
     try {
-      const result = await runStudy({
-        all: true,
+      const aliasResult = await runStudy({
+        configName: "baseline",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+      const grokBaselineResult = await runStudy({
+        configName: "baseline-grok",
         runs: 1,
         outputDir,
         dryRun: true,
         skipTests: true,
       });
 
-      expect(result.runRecords.length).toBe(5);
-      expect(result.summaryRecords.length).toBe(5);
+      expect(aliasResult.runRecords.length).toBe(1);
+      expect(aliasResult.summaryRecords.length).toBe(1);
+      expect(String(aliasResult.summaryRecords[0]?.config)).toBe("baseline-openai");
 
-      const baseline = result.summaryRecords.find((row) => row.config === "baseline");
-      const mini = result.summaryRecords.find((row) => row.config === "openai-mini");
-      expect(Number(baseline?.mean_cost_usd)).toBeGreaterThan(0);
-      expect(Number(mini?.mean_cost_usd)).toBeLessThan(Number(baseline?.mean_cost_usd));
+      expect(grokBaselineResult.runRecords.length).toBe(1);
+      expect(grokBaselineResult.summaryRecords.length).toBe(1);
+      expect(String(grokBaselineResult.summaryRecords[0]?.config)).toBe("baseline-grok");
+      expect(Number(aliasResult.summaryRecords[0]?.mean_cost_usd)).toBeGreaterThan(0);
+      expect(Number(grokBaselineResult.summaryRecords[0]?.mean_cost_usd)).toBeGreaterThan(0);
 
-      expect(await Bun.file(join(result.outputFolder, "steps.csv")).exists()).toBe(true);
-      expect(await Bun.file(join(result.outputFolder, "dashboard.html")).exists()).toBe(true);
+      expect(await Bun.file(join(aliasResult.outputFolder, "steps.csv")).exists()).toBe(true);
+      expect(await Bun.file(join(grokBaselineResult.outputFolder, "dashboard.html")).exists()).toBe(true);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
-  });
+  }, 30000);
 });

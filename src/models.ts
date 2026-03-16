@@ -366,11 +366,11 @@ async function createXaiClient(options: CreateModelClientOptions): Promise<Model
 }
 
 export async function createModelClient(options: CreateModelClientOptions): Promise<ModelClient> {
-  if (!options.apiKey) {
-    if (options.fallbackToMock) {
-      return new MockModelClient(options.provider, options.model);
-    }
+  if (options.fallbackToMock) {
+    return new MockModelClient(options.provider, options.model);
+  }
 
+  if (!options.apiKey) {
     throw new Error(`Missing API key for ${options.provider}.`);
   }
 

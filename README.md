@@ -117,7 +117,10 @@ bun run taskforge -- refine task_0001 --feedback "Add acceptance criteria and ed
 ## Running The Study
 
 ```bash
-# Baseline, 10 runs
+# OpenAI baseline, 10 runs
+bun run study --config baseline-openai --runs 10
+
+# Backward-compatible alias for the OpenAI baseline
 bun run study --config baseline --runs 10
 
 # OpenAI cascade using gpt-5-mini as the gate
@@ -126,10 +129,12 @@ bun run study --config openai-mini --runs 10
 # OpenAI cascade using gpt-5-nano
 bun run study --config openai-nano --runs 10
 
-# Anthropic cascade
+# Anthropic baseline and cascade
+bun run study --config baseline-anthropic --runs 10
 bun run study --config anthropic --runs 10
 
-# xAI cascade
+# xAI baseline and cascade
+bun run study --config baseline-grok --runs 10
 bun run study --config grok --runs 10
 
 # Every configured setup

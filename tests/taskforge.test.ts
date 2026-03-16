@@ -57,6 +57,16 @@ describe("TaskForgeService", () => {
 
   test("supports decomposition, refinement, and report export without live AI", async () => {
     const service = await createService();
+    const previousEnv = {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      XAI_API_KEY: process.env.XAI_API_KEY,
+    };
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.XAI_API_KEY;
+
+    try {
     const task = await service.addTask({
       title: "Ship the first release",
       description: "Prepare a usable public release.",
@@ -75,5 +85,16 @@ describe("TaskForgeService", () => {
     const report = await service.exportReport({ format: "markdown" });
     expect(report.content).toContain("TaskForge Report");
     expect(report.content).toContain(task.title);
+    } finally {
+      if (previousEnv.OPENAI_API_KEY !== undefined) {
+        process.env.OPENAI_API_KEY = previousEnv.OPENAI_API_KEY;
+      }
+      if (previousEnv.ANTHROPIC_API_KEY !== undefined) {
+        process.env.ANTHROPIC_API_KEY = previousEnv.ANTHROPIC_API_KEY;
+      }
+      if (previousEnv.XAI_API_KEY !== undefined) {
+        process.env.XAI_API_KEY = previousEnv.XAI_API_KEY;
+      }
+    }
   });
 });
