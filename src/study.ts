@@ -453,14 +453,24 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
     grouped.set(run.config, list);
   }
 
-  const baselineRuns = grouped.get("baseline") ?? [];
-  const baselineCostMean = summarizeNumbers(baselineRuns.map((run) => run.totalCostUsd)).mean;
-  const baselineTokenMean = summarizeNumbers(baselineRuns.map((run) => run.totalTokens)).mean;
+  const baselineConfigByProvider: Record<ProviderName, string> = {
+    openai: "baseline-openai",
+    anthropic: "baseline-anthropic",
+    xai: "baseline-grok",
+    gemini: "baseline-gemini",
+  };
 
   return Array.from(grouped.entries()).map(([configName, configRuns]) => {
+    const representativeRun = configRuns[0];
     const cost = summarizeNumbers(configRuns.map((run) => run.totalCostUsd));
     const tokens = summarizeNumbers(configRuns.map((run) => run.totalTokens));
     const quality = summarizeNumbers(configRuns.map((run) => run.meanQualityScore));
+    const baselineConfigName = representativeRun ? baselineConfigByProvider[representativeRun.provider] : undefined;
+    const matchingBaselineRuns = baselineConfigName ? grouped.get(baselineConfigName) ?? [] : [];
+    const baselineCostMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalCostUsd)).mean;
+    const baselineTokenMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalTokens)).mean;
+    const isBaselineConfig = representativeRun?.mode === "baseline";
+
     return {
       config: configName,
       runs: configRuns.length,
@@ -473,8 +483,16 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
       mean_quality: quality.mean,
       median_quality: quality.median,
       stddev_quality: quality.stddev,
-      cost_savings_vs_baseline_pct: baselineCostMean ? percentSavings(baselineCostMean, cost.mean) : null,
-      token_savings_vs_baseline_pct: baselineTokenMean ? percentSavings(baselineTokenMean, tokens.mean) : null,
+      cost_savings_vs_baseline_pct: isBaselineConfig
+        ? 0
+        : baselineCostMean
+          ? percentSavings(baselineCostMean, cost.mean)
+          : null,
+      token_savings_vs_baseline_pct: isBaselineConfig
+        ? 0
+        : baselineTokenMean
+          ? percentSavings(baselineTokenMean, tokens.mean)
+          : null,
     };
   });
 }
