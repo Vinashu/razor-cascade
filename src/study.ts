@@ -273,24 +273,51 @@ function scoreTaskOutput(task: StudyTask, text: string, testsPassed: boolean | n
   return Math.max(0, Math.min(10, Math.round(raw * 10) / 10));
 }
 
+function trySubCategorySum(obj: unknown): number | null {
+  if (typeof obj !== "object" || obj === null) {
+    return null;
+  }
+
+  const record = obj as Record<string, unknown>;
+  const fields = [record.completeness, record.correctness, record.clarity, record.architecture];
+  const defined = fields.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (defined.length < 2) {
+    return null;
+  }
+
+  return Math.min(10, Math.max(0, defined.reduce((sum, v) => sum + v, 0)));
+}
+
 function parseJudgeScore(text: string): number {
   const trimmed = text.trim();
 
   try {
-    const directJson = JudgeScoreSchema.safeParse(JSON.parse(trimmed) as unknown);
+    const obj = JSON.parse(trimmed) as unknown;
+    const directJson = JudgeScoreSchema.safeParse(obj);
     if (directJson.success) {
       return roundNumber(directJson.data.score, 1);
+    }
+
+    const subCategorySum = trySubCategorySum(obj);
+    if (subCategorySum !== null) {
+      return roundNumber(subCategorySum, 1);
     }
   } catch {
     // Fall through to alternate parsing strategies below.
   }
 
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  const jsonMatch = trimmed.match(/\{[\s\S]*?\}/);
   if (jsonMatch) {
     try {
-      const parsed = JudgeScoreSchema.safeParse(JSON.parse(jsonMatch[0]) as unknown);
+      const obj = JSON.parse(jsonMatch[0]) as unknown;
+      const parsed = JudgeScoreSchema.safeParse(obj);
       if (parsed.success) {
         return roundNumber(parsed.data.score, 1);
+      }
+
+      const subCategorySum = trySubCategorySum(obj);
+      if (subCategorySum !== null) {
+        return roundNumber(subCategorySum, 1);
       }
     } catch {
       // Fall through to regex parsing below.
@@ -320,18 +347,17 @@ export async function llmJudgeScore(
 Task title: ${task.title}
 Task objective: ${task.objective}
 
-Rubric:
-- completeness: 0-3
-- correctness: 0-3
-- clarity: 0-2
-- architecture: 0-2
-- total score: sum of the four category scores, 0-10
+Rubric (use these for your internal reasoning only — do NOT include sub-scores in the output):
+- completeness: 0-3 (does the response fully address the objective?)
+- correctness: 0-3 (is the proposed implementation technically sound?)
+- clarity: 0-2 (is it easy to understand and act on?)
+- architecture: 0-2 (does it respect sound design principles?)
 
 Candidate response:
 ${responseText}
 
-Return strict JSON only in this shape:
-{"score": 0}`;
+Respond with ONLY a valid JSON object where "score" is the integer sum of the four rubric dimensions above (0–10):
+{"score": <integer>}`;
   const response = await client.generateText({
     system: "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
     prompt: rubricPrompt,

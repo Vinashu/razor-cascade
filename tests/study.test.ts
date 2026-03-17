@@ -102,6 +102,9 @@ describe("study runner", () => {
 
   test("supports LLM judge scoring with an optional judge model in dry-run mode", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-"));
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => { warnings.push(String(args[0] ?? "")); originalWarn(...args); };
 
     try {
       const result = await runStudy({
@@ -120,9 +123,13 @@ describe("study runner", () => {
       expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
       expect(result.runRecords[0]?.usedMockClients).toBe(true);
 
+      // No fallback warnings: the mock judge must have returned parseable JSON for every task.
+      expect(warnings.filter((w) => w.includes("falling back to heuristic scoring"))).toHaveLength(0);
+
       const stepsCsv = await Bun.file(join(result.outputFolder, "steps.csv")).text();
       expect(stepsCsv).toContain("qualityScore");
     } finally {
+      console.warn = originalWarn;
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);
