@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -212,6 +212,62 @@ describe("study runner", () => {
       expect(report).toContain("Configuration Summary");
     } finally {
       console.warn = originalWarn;
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("writes prompt and response snapshots only when snapshot mode is enabled", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-snapshots-"));
+
+    try {
+      const defaultResult = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+      const defaultSnapshotFile = Bun.file(
+        join(defaultResult.outputFolder, "snapshots", "baseline-openai-run1-step1-flagship.json"),
+      );
+      expect(await defaultSnapshotFile.exists()).toBe(false);
+
+      const snapshotResult = await runStudy({
+        configName: "openai-mini",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+        judge: true,
+        judgeModel: "gpt-5-nano",
+        snapshot: true,
+      });
+
+      const snapshotDir = join(snapshotResult.outputFolder, "snapshots");
+      const snapshotFiles = await readdir(snapshotDir);
+
+      expect(snapshotFiles).toHaveLength(30);
+      expect(snapshotFiles).toContain("openai-mini-run1-step1-flagship.json");
+      expect(snapshotFiles).toContain("openai-mini-run1-step1-gate.json");
+      expect(snapshotFiles).toContain("openai-mini-run1-step1-judge.json");
+
+      const flagshipSnapshot = JSON.parse(
+        await Bun.file(join(snapshotDir, "openai-mini-run1-step1-flagship.json")).text(),
+      ) as {
+        system?: string;
+        prompt?: string;
+        response?: string;
+        usage?: { inputTokens?: number; outputTokens?: number };
+        durationMs?: number;
+      };
+
+      expect(flagshipSnapshot.system).toContain("senior engineer");
+      expect(flagshipSnapshot.prompt).toContain("Execution mode: cascade");
+      expect(flagshipSnapshot.response).toContain("Implementation note");
+      expect(flagshipSnapshot.usage?.inputTokens).toBeGreaterThan(0);
+      expect(flagshipSnapshot.usage?.outputTokens).toBeGreaterThan(0);
+      expect(flagshipSnapshot.durationMs).toBeGreaterThanOrEqual(0);
+    } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);

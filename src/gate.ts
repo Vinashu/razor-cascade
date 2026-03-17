@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import type { ModelClient } from "./models.ts";
+import type { TokenUsage } from "./metrics.ts";
 
 export const GateSummarySchema = z.object({
   goal: z.string().min(1),
@@ -182,11 +183,19 @@ export async function summarizeWithGate(options: {
   latestChanges: string;
   previousInvariants?: string[];
   client: ModelClient;
-}): Promise<{ summary: GateSummary; draftSummary: GateSummary; rawText: string }> {
+}): Promise<{
+  summary: GateSummary;
+  draftSummary: GateSummary;
+  rawText: string;
+  system: string;
+  prompt: string;
+  usage: TokenUsage;
+}> {
   const previousInvariants = options.previousInvariants ?? [];
   const prompt = buildGatePrompt(options.history, options.latestChanges, previousInvariants);
+  const system = GATE_SYSTEM_PROMPT;
   const response = await options.client.generateText({
-    system: GATE_SYSTEM_PROMPT,
+    system,
     prompt,
     maxOutputTokens: 650,
     metadata: {
@@ -201,6 +210,9 @@ export async function summarizeWithGate(options: {
       summary: finalizeGateSummary(draftSummary, sourceText, previousInvariants),
       draftSummary,
       rawText: response.text,
+      system,
+      prompt,
+      usage: response.usage,
     };
   } catch {
     const draftSummary = heuristicGateSummary(options.history, options.latestChanges, previousInvariants);
@@ -208,6 +220,9 @@ export async function summarizeWithGate(options: {
       summary: finalizeGateSummary(draftSummary, sourceText, previousInvariants),
       draftSummary,
       rawText: response.text,
+      system,
+      prompt,
+      usage: response.usage,
     };
   }
 }

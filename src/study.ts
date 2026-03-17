@@ -13,12 +13,12 @@ import {
   confidenceInterval,
   type DashboardCurveDatum,
   estimateCostUsd,
-  estimateTokens,
   percentSavings,
   renderTextBarChart,
   roundNumber,
   summarizeNumbers,
   totalTokens,
+  type TokenUsage,
   welchTTest,
   writeCsv,
   writeHtmlDashboard,
@@ -124,10 +124,37 @@ interface IterationAggregate {
 }
 
 interface StudyTaskResponse {
-  text: string;
-  inputTokens: number;
-  outputTokens: number;
+  system: string;
+  prompt: string;
+  response: string;
+  usage: TokenUsage;
   durationMs: number;
+}
+
+interface SnapshotPayload {
+  system: string;
+  prompt: string;
+  response: string;
+  usage: TokenUsage;
+  durationMs: number;
+}
+
+interface StepSnapshotRecord {
+  config: string;
+  runId: number;
+  stepNumber: number;
+  role: "flagship" | "gate" | "judge";
+  payload: SnapshotPayload;
+}
+
+class JudgeScoringError extends Error {
+  public readonly trace: SnapshotPayload;
+
+  public constructor(message: string, trace: SnapshotPayload) {
+    super(message);
+    this.name = "JudgeScoringError";
+    this.trace = trace;
+  }
 }
 
 interface TestCacheResult {
@@ -382,24 +409,84 @@ Respond with ONLY a valid JSON object where "score" is the integer sum of the fo
   return parseJudgeScore(response.text);
 }
 
+async function runJudgeScoringStep(
+  client: ModelClient,
+  task: StudyTask,
+  responseText: string,
+): Promise<{ score: number; trace: SnapshotPayload }> {
+  const rubricPrompt = `Evaluate the candidate engineering update for this study task.
+
+Task title: ${task.title}
+Task objective: ${task.objective}
+
+Rubric (use these for your internal reasoning only - do NOT include sub-scores in the output):
+- completeness: 0-3 (does the response fully address the objective?)
+- correctness: 0-3 (is the proposed implementation technically sound?)
+- clarity: 0-2 (is it easy to understand and act on?)
+- architecture: 0-2 (does it respect sound design principles?)
+
+Candidate response:
+${responseText}
+
+Respond with ONLY a valid JSON object where "score" is the integer sum of the four rubric dimensions above (0-10):
+{"score": <integer>}`;
+  const system = "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.";
+  const startedAt = performance.now();
+  const response = await client.generateText({
+    system,
+    prompt: rubricPrompt,
+    maxOutputTokens: 100,
+    metadata: {
+      kind: "judge",
+      task: String(task.number),
+    },
+  });
+  const trace: SnapshotPayload = {
+    system,
+    prompt: rubricPrompt,
+    response: response.text,
+    usage: response.usage,
+    durationMs: Math.round(performance.now() - startedAt),
+  };
+
+  try {
+    return {
+      score: parseJudgeScore(response.text),
+      trace,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new JudgeScoringError(message, trace);
+  }
+}
+
 async function scoreTaskOutputWithOptionalJudge(
   task: StudyTask,
   text: string,
   testsPassed: boolean | null,
   judgeClient?: ModelClient,
-): Promise<number> {
+): Promise<{ score: number; trace?: SnapshotPayload }> {
   if (!judgeClient) {
-    return scoreTaskOutput(task, text, testsPassed);
+    return {
+      score: scoreTaskOutput(task, text, testsPassed),
+    };
   }
 
   try {
-    return await llmJudgeScore(judgeClient, task, text);
+    const result = await runJudgeScoringStep(judgeClient, task, text);
+    return {
+      score: result.score,
+      trace: result.trace,
+    };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.warn(
       `Judge scoring failed for task ${task.number} (${task.title}); falling back to heuristic scoring. Reason: ${reason}`,
     );
-    return scoreTaskOutput(task, text, testsPassed);
+    return {
+      score: scoreTaskOutput(task, text, testsPassed),
+      trace: error instanceof JudgeScoringError ? error.trace : undefined,
+    };
   }
 }
 
@@ -408,9 +495,10 @@ async function runSingleModelStep(
   prompt: string,
   task: StudyTask,
 ): Promise<StudyTaskResponse> {
+  const system = "You are a senior engineer writing concise implementation updates.";
   const startedAt = performance.now();
   const response = await client.generateText({
-    system: "You are a senior engineer writing concise implementation updates.",
+    system,
     prompt,
     maxOutputTokens: 900,
     metadata: {
@@ -421,9 +509,10 @@ async function runSingleModelStep(
   const durationMs = Math.round(performance.now() - startedAt);
 
   return {
-    text: response.text,
-    inputTokens: response.usage.inputTokens,
-    outputTokens: response.usage.outputTokens,
+    system,
+    prompt,
+    response: response.text,
+    usage: response.usage,
     durationMs,
   };
 }
@@ -559,27 +648,29 @@ async function executeRun(
   runId: number,
   clients: StudyClients,
   testsPassed: boolean | null,
-): Promise<{ steps: StepRecord[]; run: RunRecord }> {
+): Promise<{ steps: StepRecord[]; run: RunRecord; snapshots: StepSnapshotRecord[] }> {
   const fullHistory: string[] = [];
   let cascadedContext = "";
   let invariantMemory: string[] = [];
   const stepRecords: StepRecord[] = [];
+  const snapshots: StepSnapshotRecord[] = [];
 
   for (const task of STUDY_TASKS) {
     const context = config.mode === "baseline" ? fullHistory.join("\n\n") : cascadedContext;
     const prompt = buildTaskPrompt(task, config.mode, context);
     const flagshipResult = await runSingleModelStep(clients.flagship, prompt, task);
     const flagshipUsage = {
-      inputTokens: flagshipResult.inputTokens,
-      outputTokens: flagshipResult.outputTokens,
+      inputTokens: flagshipResult.usage.inputTokens,
+      outputTokens: flagshipResult.usage.outputTokens,
     };
     const flagshipCost = estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage);
-    const qualityScore = await scoreTaskOutputWithOptionalJudge(
+    const qualityResult = await scoreTaskOutputWithOptionalJudge(
       task,
-      flagshipResult.text,
+      flagshipResult.response,
       testsPassed,
       clients.judge,
     );
+    const qualityScore = qualityResult.score;
 
     stepRecords.push({
       config: config.name,
@@ -605,8 +696,30 @@ async function executeRun(
       testsPassed,
       success: qualityScore >= 7 && testsPassed !== false,
     });
+    snapshots.push({
+      config: config.name,
+      runId,
+      stepNumber: task.number,
+      role: "flagship",
+      payload: {
+        system: flagshipResult.system,
+        prompt: flagshipResult.prompt,
+        response: flagshipResult.response,
+        usage: flagshipResult.usage,
+        durationMs: flagshipResult.durationMs,
+      },
+    });
+    if (qualityResult.trace) {
+      snapshots.push({
+        config: config.name,
+        runId,
+        stepNumber: task.number,
+        role: "judge",
+        payload: qualityResult.trace,
+      });
+    }
 
-    fullHistory.push(buildHistoryEntry(task, flagshipResult.text));
+    fullHistory.push(buildHistoryEntry(task, flagshipResult.response));
     invariantMemory = mergeInvariantFacts(invariantMemory, extractInvariants(fullHistory[fullHistory.length - 1] ?? "").facts);
 
     const flagshipStepRecord = stepRecords[stepRecords.length - 1];
@@ -616,18 +729,14 @@ async function executeRun(
 
     if (config.mode === "cascade" && clients.gate && config.gateModel) {
       const gateStartedAt = performance.now();
-      const gateInputText = `${fullHistory.join("\n\n")}\n\nLatest changes:\n${flagshipResult.text}`;
       const gateResult = await summarizeWithGate({
         history: fullHistory.join("\n\n"),
-        latestChanges: flagshipResult.text,
+        latestChanges: flagshipResult.response,
         previousInvariants: invariantMemory,
         client: clients.gate,
       });
       const gateDurationMs = Math.round(performance.now() - gateStartedAt);
-      const gateUsage = {
-        inputTokens: estimateTokens(gateInputText),
-        outputTokens: estimateTokens(JSON.stringify(gateResult.summary)),
-      };
+      const gateUsage = gateResult.usage;
       const driftReport = buildDriftReport(formatGateSummary(gateResult.draftSummary), invariantMemory);
       const gateCost = estimateCostUsd(config.provider, config.gateModel, gateUsage);
 
@@ -655,10 +764,23 @@ async function executeRun(
         testsPassed,
         success: true,
       });
+      snapshots.push({
+        config: config.name,
+        runId,
+        stepNumber: task.number,
+        role: "gate",
+        payload: {
+          system: gateResult.system,
+          prompt: gateResult.prompt,
+          response: gateResult.rawText,
+          usage: gateResult.usage,
+          durationMs: gateDurationMs,
+        },
+      });
 
       cascadedContext = formatGateSummary(gateResult.summary);
     } else {
-      cascadedContext = flagshipResult.text;
+      cascadedContext = flagshipResult.response;
     }
   }
 
@@ -696,7 +818,29 @@ async function executeRun(
         clients.gate?.mode === "mock" ||
         clients.judge?.mode === "mock",
     },
+    snapshots,
   };
+}
+
+function buildSnapshotFileName(snapshot: StepSnapshotRecord): string {
+  return `${snapshot.config}-run${snapshot.runId}-step${snapshot.stepNumber}-${snapshot.role}.json`;
+}
+
+async function writeSnapshots(outputFolder: string, snapshots: StepSnapshotRecord[]): Promise<void> {
+  if (snapshots.length === 0) {
+    return;
+  }
+
+  const snapshotDir = join(outputFolder, "snapshots");
+  await mkdir(snapshotDir, { recursive: true });
+  await Promise.all(
+    snapshots.map((snapshot) =>
+      Bun.write(
+        join(snapshotDir, buildSnapshotFileName(snapshot)),
+        JSON.stringify(snapshot.payload, null, 2),
+      )
+    ),
+  );
 }
 
 export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> {
@@ -892,6 +1036,7 @@ export async function runStudy(options: {
   dryRun?: boolean;
   skipTests?: boolean;
   costCap?: number;
+  snapshot?: boolean;
 }): Promise<{
   outputFolder: string;
   stepRecords: StepRecord[];
@@ -951,6 +1096,9 @@ export async function runStudy(options: {
       const result = await executeRun(config, runId, clients, cachedTests.passed);
       stepRecords.push(...result.steps);
       runRecords.push(result.run);
+      if (options.snapshot) {
+        await writeSnapshots(outputFolder, result.snapshots);
+      }
       cumulativeEstimatedCostUsd = roundNumber(cumulativeEstimatedCostUsd + result.run.totalCostUsd, 8);
     }
   }
@@ -1007,6 +1155,7 @@ function buildStudyProgram(): Command {
     .option("--judge", "Score flagship outputs with an LLM judge instead of the heuristic scorer.", false)
     .option("--judge-model <model>", "Optional judge model override. Defaults to the flagship model.")
     .option("--cost-cap <usd>", "Stop early once cumulative estimated study cost already exceeds this USD cap.")
+    .option("--snapshot", "Write per-step prompt/response JSON snapshots for reproducibility.", false)
     .option("--output-dir <path>", "Root folder for experiment artifacts.")
     .option("--dry-run", "Use deterministic mock clients even if API keys are present.", false)
     .option("--skip-tests", "Skip local tests while running the study.", false)
@@ -1030,6 +1179,7 @@ function buildStudyProgram(): Command {
         judge: options.judge,
         judgeModel: options.judgeModel,
         costCap,
+        snapshot: options.snapshot,
         outputDir: options.outputDir,
         dryRun: options.dryRun,
         skipTests: options.skipTests,

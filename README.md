@@ -156,6 +156,9 @@ bun run study --configs baseline-openai,openai-mini --runs 10
 
 # One-pass run with LLM-as-judge scoring using GPT-5 nano as the judge
 bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
+
+# Capture per-step prompt/response snapshots for reproducibility
+bun run study --config openai-mini --runs 1 --snapshot
 ```
 
 Helpful flags:
@@ -168,12 +171,15 @@ Helpful flags:
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 - `--judge`: score each flagship response with an LLM judge instead of the built-in heuristic scorer.
 - `--judge-model <model>`: optionally use a separate judge model; if omitted, the flagship model is reused.
+- `--snapshot`: write per-step JSON snapshots under `snapshots/` with the exact system prompt, user prompt, model response, usage, and duration.
 
 Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls are capped to a small output budget to control extra cost.
 
 Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 
 Live API runs also include automatic retry with exponential backoff and jitter for transient failures such as rate limits, 5xx responses, and short network interruptions. Non-retryable request errors such as invalid authentication or malformed input are surfaced immediately.
+
+Snapshot mode is off by default to avoid disk bloat. When enabled, each flagship step writes `{config}-run{runId}-step{stepNumber}-flagship.json`; cascade runs also add `-gate.json`, and judge-enabled runs add `-judge.json`.
 
 ## Gate Prompt
 
@@ -200,6 +206,7 @@ Each study execution writes a timestamped folder under `experiments/` containing
 - `summary.json`: config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals.
 - `dashboard.html`: simple zero-dependency HTML visualization.
 - `report.md`: Markdown summary suitable for publication notes, including the significance-testing table.
+- `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
 
 If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
 
