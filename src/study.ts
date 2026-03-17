@@ -9,6 +9,8 @@ import { buildDriftReport } from "./contradictions.ts";
 import { formatGateSummary, summarizeWithGate } from "./gate.ts";
 import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import {
+  cohensD,
+  confidenceInterval,
   type DashboardCurveDatum,
   estimateCostUsd,
   estimateTokens,
@@ -17,6 +19,7 @@ import {
   roundNumber,
   summarizeNumbers,
   totalTokens,
+  welchTTest,
   writeCsv,
   writeHtmlDashboard,
   type DashboardDatum,
@@ -555,6 +558,9 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
 
   return Array.from(grouped.entries()).map(([configName, configRuns]) => {
     const representativeRun = configRuns[0];
+    const costSamples = configRuns.map((run) => run.totalCostUsd);
+    const tokenSamples = configRuns.map((run) => run.totalTokens);
+    const qualitySamples = configRuns.map((run) => run.meanQualityScore);
     const cost = summarizeNumbers(configRuns.map((run) => run.totalCostUsd));
     const tokens = summarizeNumbers(configRuns.map((run) => run.totalTokens));
     const quality = summarizeNumbers(configRuns.map((run) => run.meanQualityScore));
@@ -564,9 +570,18 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
     const contradictions = summarizeNumbers(configRuns.map((run) => run.totalContradictions));
     const baselineConfigName = representativeRun ? baselineConfigByProvider[representativeRun.provider] : undefined;
     const matchingBaselineRuns = baselineConfigName ? grouped.get(baselineConfigName) ?? [] : [];
+    const baselineCostSamples = matchingBaselineRuns.map((run) => run.totalCostUsd);
+    const baselineTokenSamples = matchingBaselineRuns.map((run) => run.totalTokens);
+    const baselineQualitySamples = matchingBaselineRuns.map((run) => run.meanQualityScore);
     const baselineCostMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalCostUsd)).mean;
     const baselineTokenMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalTokens)).mean;
     const isBaselineConfig = representativeRun?.mode === "baseline";
+    const hasMatchingBaseline = !isBaselineConfig && matchingBaselineRuns.length > 0;
+    const costInterval = confidenceInterval(costSamples);
+    const costTTest = hasMatchingBaseline ? welchTTest(costSamples, baselineCostSamples) : null;
+    const tokenTTest = hasMatchingBaseline ? welchTTest(tokenSamples, baselineTokenSamples) : null;
+    const qualityTTest = hasMatchingBaseline ? welchTTest(qualitySamples, baselineQualitySamples) : null;
+    const costEffectSize = hasMatchingBaseline ? cohensD(costSamples, baselineCostSamples) : null;
 
     return {
       config: configName,
@@ -594,6 +609,12 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
         : baselineTokenMean
           ? percentSavings(baselineTokenMean, tokens.mean)
           : null,
+      pValue_cost: costTTest ? roundNumber(costTTest.pValue, 6) : null,
+      pValue_tokens: tokenTTest ? roundNumber(tokenTTest.pValue, 6) : null,
+      pValue_quality: qualityTTest ? roundNumber(qualityTTest.pValue, 6) : null,
+      cohensD_cost: costEffectSize === null ? null : roundNumber(costEffectSize, 4),
+      ci95_cost_lower: roundNumber(costInterval.lower, 8),
+      ci95_cost_upper: roundNumber(costInterval.upper, 8),
     };
   });
 }
@@ -651,6 +672,15 @@ function buildMarkdownSummary(
   outputFolder: string,
   tests: TestCacheResult,
 ): string {
+  const formatMetric = (value: unknown, decimals: number): string =>
+    typeof value === "number" ? value.toFixed(decimals) : "n/a";
+  const formatCostInterval = (row: Record<string, unknown>): string => {
+    const lower = row.ci95_cost_lower;
+    const upper = row.ci95_cost_upper;
+    return typeof lower === "number" && typeof upper === "number"
+      ? `[${lower.toFixed(4)}, ${upper.toFixed(4)}]`
+      : "n/a";
+  };
   const lines = [
     "# RazorCascade Memory Reliability Report",
     "",
@@ -660,13 +690,13 @@ function buildMarkdownSummary(
     "",
     "## Configuration Summary",
     "",
-    "| Config | Mean Cost (USD) | Mean Drift | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Config | Mean Cost (USD) | 95% Cost CI | Mean Drift | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline | Cost p-value | Token p-value | Quality p-value | Cohen's d (Cost) |",
+    "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
 
   for (const row of summaryRows) {
     lines.push(
-      `| ${row.config} | ${row.mean_cost_usd} | ${row.mean_drift_score} | ${row.mean_tokens} | ${row.mean_quality} | ${row.cost_savings_vs_baseline_pct ?? "n/a"} | ${row.token_savings_vs_baseline_pct ?? "n/a"} |`,
+      `| ${row.config} | ${formatMetric(row.mean_cost_usd, 4)} | ${formatCostInterval(row)} | ${formatMetric(row.mean_drift_score, 2)} | ${formatMetric(row.mean_tokens, 2)} | ${formatMetric(row.mean_quality, 2)} | ${formatMetric(row.cost_savings_vs_baseline_pct, 2)} | ${formatMetric(row.token_savings_vs_baseline_pct, 2)} | ${formatMetric(row.pValue_cost, 6)} | ${formatMetric(row.pValue_tokens, 6)} | ${formatMetric(row.pValue_quality, 6)} | ${formatMetric(row.cohensD_cost, 4)} |`,
     );
   }
 

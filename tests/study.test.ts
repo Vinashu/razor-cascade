@@ -62,13 +62,13 @@ describe("study runner", () => {
     try {
       const result = await runStudy({
         configNames: ["baseline-openai", "openai-mini"],
-        runs: 1,
+        runs: 2,
         outputDir,
         dryRun: true,
         skipTests: true,
       });
 
-      expect(result.runRecords.length).toBe(2);
+      expect(result.runRecords.length).toBe(4);
       expect(result.summaryRecords.length).toBe(2);
 
       const baseline = result.summaryRecords.find((row) => row.config === "baseline-openai");
@@ -78,6 +78,22 @@ describe("study runner", () => {
       expect(cascade?.cost_savings_vs_baseline_pct).not.toBeNull();
       expect(cascade?.token_savings_vs_baseline_pct).not.toBeNull();
       expect(Number(cascade?.mean_drift_score)).toBeGreaterThanOrEqual(0);
+
+      expect(Object.hasOwn(cascade ?? {}, "pValue_cost")).toBe(true);
+      expect(Object.hasOwn(cascade ?? {}, "pValue_tokens")).toBe(true);
+      expect(Object.hasOwn(cascade ?? {}, "pValue_quality")).toBe(true);
+      expect(Object.hasOwn(cascade ?? {}, "cohensD_cost")).toBe(true);
+      expect(typeof cascade?.ci95_cost_lower).toBe("number");
+      expect(typeof cascade?.ci95_cost_upper).toBe("number");
+      expect(Number(cascade?.ci95_cost_lower)).toBeLessThanOrEqual(Number(cascade?.ci95_cost_upper));
+
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as Array<Record<string, unknown>>;
+      const report = await Bun.file(join(result.outputFolder, "report.md")).text();
+      const serializedCascade = summaryJson.find((row) => row.config === "openai-mini");
+
+      expect(Object.hasOwn(serializedCascade ?? {}, "pValue_cost")).toBe(true);
+      expect(report).toContain("Cost p-value");
+      expect(report).toContain("Cohen's d (Cost)");
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }

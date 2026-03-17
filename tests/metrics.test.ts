@@ -4,10 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  cohensD,
+  confidenceInterval,
   estimateCostUsd,
   estimateTokens,
   summarizeNumbers,
   toCsv,
+  welchTTest,
   writeHtmlDashboard,
 } from "../src/metrics.ts";
 
@@ -38,6 +41,29 @@ describe("metrics", () => {
     expect(csv).toContain("config,cost");
     expect(csv).toContain("baseline");
     expect(estimateTokens("token budget")).toBeGreaterThan(0);
+  });
+
+  test("computes Welch's t-test with a known two-tailed p-value", () => {
+    const shiftedMean = 2.266957935527523;
+    const result = welchTTest(
+      [-1, 0, 1],
+      [-1 + shiftedMean, 0 + shiftedMean, 1 + shiftedMean],
+    );
+
+    expect(result.tStatistic).toBeCloseTo(-2.7764, 3);
+    expect(result.degreesOfFreedom).toBeCloseTo(4, 6);
+    expect(result.pValue).toBeCloseTo(0.05, 3);
+  });
+
+  test("computes Cohen's d for equal-variance samples", () => {
+    expect(cohensD([1, 2, 3], [4, 5, 6])).toBeCloseTo(-3, 6);
+  });
+
+  test("computes a 95 percent confidence interval for the sample mean", () => {
+    const interval = confidenceInterval([1, 2, 3, 4, 5]);
+
+    expect(interval.lower).toBeCloseTo(1.0368, 3);
+    expect(interval.upper).toBeCloseTo(4.9632, 3);
   });
 
   test("writes a dashboard with zoomed charts and a stable zero-drift panel", async () => {

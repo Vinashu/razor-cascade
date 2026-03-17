@@ -39,6 +39,17 @@ export interface NumericSummary {
   stddev: number;
 }
 
+export interface WelchTTestResult {
+  tStatistic: number;
+  pValue: number;
+  degreesOfFreedom: number;
+}
+
+export interface ConfidenceInterval {
+  lower: number;
+  upper: number;
+}
+
 const PRICE_BOOK: Record<ProviderName, Record<string, ModelPricing>> = {
   openai: {
     "gpt-5.4": { inputUsdPerMillion: 2.5, outputUsdPerMillion: 15 },
@@ -60,6 +71,181 @@ const PRICE_BOOK: Record<ProviderName, Record<string, ModelPricing>> = {
     "gemini-2.5-flash": { inputUsdPerMillion: 0.3, outputUsdPerMillion: 2.5 },
   },
 };
+
+const LANCZOS_COEFFICIENTS = [
+  676.5203681218851,
+  -1259.1392167224028,
+  771.3234287776531,
+  -176.6150291621406,
+  12.507343278686905,
+  -0.13857109526572012,
+  9.984369578019572e-6,
+  1.5056327351493116e-7,
+];
+
+function mean(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function sampleVariance(values: number[]): number {
+  if (values.length <= 1) {
+    return 0;
+  }
+
+  const avg = mean(values);
+  const squaredDiffs = values.reduce((sum, value) => sum + (value - avg) ** 2, 0);
+  return squaredDiffs / (values.length - 1);
+}
+
+function logGamma(value: number): number {
+  if (value < 0.5) {
+    return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * value)) - logGamma(1 - value);
+  }
+
+  const adjusted = value - 1;
+  let series = 0.9999999999998099;
+
+  for (let index = 0; index < LANCZOS_COEFFICIENTS.length; index += 1) {
+    series += LANCZOS_COEFFICIENTS[index] / (adjusted + index + 1);
+  }
+
+  const t = adjusted + LANCZOS_COEFFICIENTS.length - 0.5;
+  return 0.9189385332046727 + (adjusted + 0.5) * Math.log(t) - t + Math.log(series);
+}
+
+function betaContinuedFraction(x: number, a: number, b: number): number {
+  const maxIterations = 200;
+  const epsilon = 3e-14;
+  const minimum = 1e-30;
+  let c = 1;
+  let d = 1 - ((a + b) * x) / (a + 1);
+
+  if (Math.abs(d) < minimum) {
+    d = minimum;
+  }
+
+  d = 1 / d;
+  let fraction = d;
+
+  for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+    const evenIndex = iteration * 2;
+    const evenNumerator = (iteration * (b - iteration) * x) / ((a + evenIndex - 1) * (a + evenIndex));
+    d = 1 + evenNumerator * d;
+    if (Math.abs(d) < minimum) {
+      d = minimum;
+    }
+    c = 1 + evenNumerator / c;
+    if (Math.abs(c) < minimum) {
+      c = minimum;
+    }
+    d = 1 / d;
+    fraction *= d * c;
+
+    const oddNumerator = (-(a + iteration) * (a + b + iteration) * x) / ((a + evenIndex) * (a + evenIndex + 1));
+    d = 1 + oddNumerator * d;
+    if (Math.abs(d) < minimum) {
+      d = minimum;
+    }
+    c = 1 + oddNumerator / c;
+    if (Math.abs(c) < minimum) {
+      c = minimum;
+    }
+    d = 1 / d;
+    const delta = d * c;
+    fraction *= delta;
+
+    if (Math.abs(delta - 1) < epsilon) {
+      break;
+    }
+  }
+
+  return fraction;
+}
+
+function regularizedIncompleteBeta(x: number, a: number, b: number): number {
+  if (x <= 0) {
+    return 0;
+  }
+
+  if (x >= 1) {
+    return 1;
+  }
+
+  const front = Math.exp(
+    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x),
+  );
+
+  if (x < (a + 1) / (a + b + 2)) {
+    return (front * betaContinuedFraction(x, a, b)) / a;
+  }
+
+  return 1 - (front * betaContinuedFraction(1 - x, b, a)) / b;
+}
+
+function studentTCdf(value: number, degreesOfFreedom: number): number {
+  if (!Number.isFinite(value)) {
+    return value < 0 ? 0 : 1;
+  }
+
+  if (degreesOfFreedom <= 0) {
+    return 0.5;
+  }
+
+  if (value === 0) {
+    return 0.5;
+  }
+
+  const x = degreesOfFreedom / (degreesOfFreedom + value ** 2);
+  const tailProbability = 0.5 * regularizedIncompleteBeta(x, degreesOfFreedom / 2, 0.5);
+  return value > 0 ? 1 - tailProbability : tailProbability;
+}
+
+function twoTailedStudentTPValue(tStatistic: number, degreesOfFreedom: number): number {
+  if (degreesOfFreedom <= 0 || !Number.isFinite(tStatistic)) {
+    return 1;
+  }
+
+  const x = degreesOfFreedom / (degreesOfFreedom + tStatistic ** 2);
+  return Math.min(1, Math.max(0, regularizedIncompleteBeta(x, degreesOfFreedom / 2, 0.5)));
+}
+
+function inverseStudentT(probability: number, degreesOfFreedom: number): number {
+  if (probability <= 0 || probability >= 1) {
+    throw new RangeError("Probability must be between 0 and 1.");
+  }
+
+  if (degreesOfFreedom <= 0) {
+    return 0;
+  }
+
+  let low = -50;
+  let high = 50;
+
+  while (studentTCdf(low, degreesOfFreedom) > probability) {
+    low *= 2;
+  }
+
+  while (studentTCdf(high, degreesOfFreedom) < probability) {
+    high *= 2;
+  }
+
+  for (let iteration = 0; iteration < 80; iteration += 1) {
+    const midpoint = (low + high) / 2;
+    const cdf = studentTCdf(midpoint, degreesOfFreedom);
+
+    if (cdf < probability) {
+      low = midpoint;
+    } else {
+      high = midpoint;
+    }
+  }
+
+  return (low + high) / 2;
+}
 
 export function estimateTokens(text: string): number {
   const normalized = text.replace(/\s+/g, " ").trim();
@@ -121,7 +307,7 @@ export function standardDeviation(values: number[]): number {
     return 0;
   }
 
-  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const avg = mean(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
@@ -138,7 +324,7 @@ export function summarizeNumbers(values: number[]): NumericSummary {
     };
   }
 
-  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const avg = mean(values);
   return {
     count: values.length,
     mean: roundNumber(avg, 4),
@@ -155,6 +341,103 @@ export function percentSavings(baseline: number, candidate: number): number | nu
   }
 
   return roundNumber(((baseline - candidate) / baseline) * 100, 2);
+}
+
+export function welchTTest(samplesA: number[], samplesB: number[]): WelchTTestResult {
+  if (samplesA.length === 0 || samplesB.length === 0) {
+    return {
+      tStatistic: 0,
+      pValue: 1,
+      degreesOfFreedom: 0,
+    };
+  }
+
+  const meanA = mean(samplesA);
+  const meanB = mean(samplesB);
+  const varianceA = sampleVariance(samplesA);
+  const varianceB = sampleVariance(samplesB);
+  const varianceTermA = varianceA / samplesA.length;
+  const varianceTermB = varianceB / samplesB.length;
+  const standardError = Math.sqrt(varianceTermA + varianceTermB);
+
+  if (standardError === 0) {
+    return {
+      tStatistic: 0,
+      pValue: 1,
+      degreesOfFreedom: 0,
+    };
+  }
+
+  const numerator = (varianceTermA + varianceTermB) ** 2;
+  const denominator = (
+    (samplesA.length > 1 ? (varianceTermA ** 2) / (samplesA.length - 1) : 0) +
+    (samplesB.length > 1 ? (varianceTermB ** 2) / (samplesB.length - 1) : 0)
+  );
+  const degreesOfFreedom = denominator === 0 ? 0 : numerator / denominator;
+  const tStatistic = (meanA - meanB) / standardError;
+
+  return {
+    tStatistic,
+    pValue: twoTailedStudentTPValue(tStatistic, degreesOfFreedom),
+    degreesOfFreedom,
+  };
+}
+
+export function cohensD(samplesA: number[], samplesB: number[]): number {
+  if (samplesA.length === 0 || samplesB.length === 0) {
+    return 0;
+  }
+
+  const meanA = mean(samplesA);
+  const meanB = mean(samplesB);
+  const varianceA = sampleVariance(samplesA);
+  const varianceB = sampleVariance(samplesB);
+  const pooledDegreesOfFreedom = samplesA.length + samplesB.length - 2;
+
+  if (pooledDegreesOfFreedom <= 0) {
+    return 0;
+  }
+
+  const pooledVariance =
+    (((samplesA.length - 1) * varianceA) + ((samplesB.length - 1) * varianceB)) / pooledDegreesOfFreedom;
+
+  if (pooledVariance <= 0) {
+    return 0;
+  }
+
+  return (meanA - meanB) / Math.sqrt(pooledVariance);
+}
+
+export function confidenceInterval(values: number[], confidence = 0.95): ConfidenceInterval {
+  if (confidence <= 0 || confidence >= 1) {
+    throw new RangeError("Confidence must be between 0 and 1.");
+  }
+
+  if (values.length === 0) {
+    return {
+      lower: 0,
+      upper: 0,
+    };
+  }
+
+  const avg = mean(values);
+  const variance = sampleVariance(values);
+  if (values.length === 1 || variance === 0) {
+    return {
+      lower: avg,
+      upper: avg,
+    };
+  }
+
+  const standardError = Math.sqrt(variance / values.length);
+  const alpha = 1 - confidence;
+  const criticalValue = inverseStudentT(1 - alpha / 2, values.length - 1);
+  const margin = criticalValue * standardError;
+
+  return {
+    lower: avg - margin,
+    upper: avg + margin,
+  };
 }
 
 function escapeCsvValue(value: unknown): string {
