@@ -1,5 +1,5 @@
 import { mkdir, readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 import { Command } from "commander";
 import { config as loadDotEnv } from "dotenv";
@@ -217,6 +217,115 @@ interface StudySummaryArtifact {
   configs: SummaryRecord[];
   cross_provider_comparisons?: CrossProviderComparisonRecord[];
 }
+
+const SummaryRecordSchema: z.ZodType<SummaryRecord> = z.object({
+  config: z.string().min(1),
+  provider: ProviderSchema,
+  mode: StudyModeSchema,
+  flagship_model: z.string().min(1),
+  gate_model: z.string().nullable(),
+  runs: z.number().int().nonnegative(),
+  mean_cost_usd: z.number(),
+  median_cost_usd: z.number(),
+  stddev_cost_usd: z.number(),
+  mean_tokens: z.number(),
+  median_tokens: z.number(),
+  stddev_tokens: z.number(),
+  mean_invariant_count: z.number(),
+  mean_missing_invariants: z.number(),
+  mean_contradictions: z.number(),
+  mean_drift_score: z.number(),
+  mean_quality: z.number(),
+  median_quality: z.number(),
+  stddev_quality: z.number(),
+  cost_savings_vs_baseline_pct: z.number().nullable(),
+  token_savings_vs_baseline_pct: z.number().nullable(),
+  pValue_cost: z.number().nullable(),
+  pValue_tokens: z.number().nullable(),
+  pValue_quality: z.number().nullable(),
+  cohensD_cost: z.number().nullable(),
+  ci95_cost_lower: z.number(),
+  ci95_cost_upper: z.number(),
+});
+
+const CrossProviderComparisonRecordSchema: z.ZodType<CrossProviderComparisonRecord> = z.object({
+  config_a: z.string().min(1),
+  provider_a: ProviderSchema,
+  mode_a: StudyModeSchema,
+  config_b: z.string().min(1),
+  provider_b: ProviderSchema,
+  mode_b: StudyModeSchema,
+  cost_ratio_a_to_b: z.number().nullable(),
+  token_ratio_a_to_b: z.number().nullable(),
+  quality_delta_a_minus_b: z.number(),
+});
+
+const StudySummaryArtifactSchema: z.ZodType<StudySummaryArtifact> = z.object({
+  dataSource: z.union([z.literal("mock"), z.literal("live")]),
+  configs: z.array(SummaryRecordSchema),
+  cross_provider_comparisons: z.array(CrossProviderComparisonRecordSchema).optional(),
+});
+
+interface LoadedStudySummaryArtifact {
+  label: string;
+  folder: string;
+  summaryPath: string;
+  summary: StudySummaryArtifact;
+}
+
+interface ComparisonMetricDefinition {
+  label: string;
+  decimals: number;
+  value: (row: SummaryRecord) => number | null;
+}
+
+const SUMMARY_COMPARISON_METRICS: ComparisonMetricDefinition[] = [
+  {
+    label: "Runs",
+    decimals: 0,
+    value: (row) => row.runs,
+  },
+  {
+    label: "Mean Cost (USD)",
+    decimals: 4,
+    value: (row) => row.mean_cost_usd,
+  },
+  {
+    label: "Mean Tokens",
+    decimals: 2,
+    value: (row) => row.mean_tokens,
+  },
+  {
+    label: "Mean Quality",
+    decimals: 2,
+    value: (row) => row.mean_quality,
+  },
+  {
+    label: "Mean Drift",
+    decimals: 2,
+    value: (row) => row.mean_drift_score,
+  },
+  {
+    label: "Cost Savings vs Baseline (%)",
+    decimals: 2,
+    value: (row) => row.cost_savings_vs_baseline_pct,
+  },
+  {
+    label: "Token Savings vs Baseline (%)",
+    decimals: 2,
+    value: (row) => row.token_savings_vs_baseline_pct,
+  },
+  {
+    label: "Cost p-value",
+    decimals: 6,
+    value: (row) => row.pValue_cost,
+  },
+  {
+    label: "Quality p-value",
+    decimals: 6,
+    value: (row) => row.pValue_quality,
+  },
+];
 
 const STUDY_TASKS: StudyTask[] = [
   {
@@ -1138,6 +1247,135 @@ export function buildMarkdownSummary(
   return `${lines.join("\n")}\n`;
 }
 
+function buildExperimentLabels(experimentFolders: string[]): string[] {
+  const counts = new Map<string, number>();
+
+  return experimentFolders.map((folder) => {
+    const baseLabel = basename(folder) || folder;
+    const occurrence = (counts.get(baseLabel) ?? 0) + 1;
+    counts.set(baseLabel, occurrence);
+    return occurrence === 1 ? baseLabel : `${baseLabel} (${occurrence})`;
+  });
+}
+
+function formatComparisonValue(value: number | null | undefined, decimals: number): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(decimals) : "n/a";
+}
+
+function formatConfigLabel(row: SummaryRecord): string {
+  return `${row.config} (${row.provider}, ${row.mode})`;
+}
+
+async function loadStudySummaryArtifact(
+  experimentFolder: string,
+  label: string,
+): Promise<LoadedStudySummaryArtifact> {
+  const folder = resolve(experimentFolder);
+  const summaryPath = join(folder, "summary.json");
+  let rawSummary: string;
+
+  try {
+    rawSummary = await readFile(summaryPath, "utf8");
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Unable to read study summary from "${summaryPath}": ${reason}`);
+  }
+
+  try {
+    return {
+      label,
+      folder,
+      summaryPath,
+      summary: StudySummaryArtifactSchema.parse(JSON.parse(rawSummary) as unknown),
+    };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid study summary artifact at "${summaryPath}": ${reason}`);
+  }
+}
+
+function buildComparisonReport(experiments: LoadedStudySummaryArtifact[]): string {
+  const lines = [
+    "# RazorCascade Experiment Comparison",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    `Compared experiments: ${experiments.length}`,
+    "",
+    "## Experiments",
+    "",
+    "| Experiment | Folder | Data Source | Config Count | Cross-Provider Pairs |",
+    "| --- | --- | --- | ---: | ---: |",
+  ];
+
+  for (const experiment of experiments) {
+    lines.push(
+      `| ${experiment.label} | ${experiment.folder} | ${experiment.summary.dataSource} | ${experiment.summary.configs.length} | ${experiment.summary.cross_provider_comparisons?.length ?? 0} |`,
+    );
+  }
+
+  const configOrder = new Map<string, SummaryRecord>();
+  for (const experiment of experiments) {
+    for (const row of experiment.summary.configs) {
+      if (!configOrder.has(row.config)) {
+        configOrder.set(row.config, row);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push("## Side-by-Side Configuration Metrics");
+  lines.push("");
+  lines.push(`| Config | Metric | ${experiments.map((experiment) => experiment.label).join(" | ")} |`);
+  lines.push(`| --- | --- | ${experiments.map(() => "---:").join(" | ")} |`);
+
+  for (const configName of [...configOrder.keys()].sort((left, right) => left.localeCompare(right))) {
+    const representativeRow = configOrder.get(configName);
+    if (!representativeRow) {
+      continue;
+    }
+
+    for (const metric of SUMMARY_COMPARISON_METRICS) {
+      const values = experiments.map((experiment) => {
+        const row = experiment.summary.configs.find((summaryRow) => summaryRow.config === configName);
+        return formatComparisonValue(row ? metric.value(row) : null, metric.decimals);
+      });
+
+      lines.push(`| ${formatConfigLabel(representativeRow)} | ${metric.label} | ${values.join(" | ")} |`);
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+export async function compareStudyArtifacts(
+  experimentFolders: string[],
+  outputPath?: string,
+): Promise<{
+  report: string;
+  outputPath?: string;
+}> {
+  if (experimentFolders.length < 2) {
+    throw new Error("The compare command requires at least two experiment folders.");
+  }
+
+  const labels = buildExperimentLabels(experimentFolders);
+  const experiments = await Promise.all(
+    experimentFolders.map((folder, index) => loadStudySummaryArtifact(folder, labels[index] ?? folder)),
+  );
+  const report = buildComparisonReport(experiments);
+  const resolvedOutputPath = outputPath ? resolve(outputPath) : undefined;
+
+  if (resolvedOutputPath) {
+    await mkdir(dirname(resolvedOutputPath), { recursive: true });
+    await Bun.write(resolvedOutputPath, report);
+  }
+
+  return {
+    report,
+    outputPath: resolvedOutputPath,
+  };
+}
+
 export async function runStudy(options: {
   configName?: string;
   configNames?: string[];
@@ -1275,7 +1513,7 @@ function buildStudyProgram(): Command {
   const program = new Command();
   program
     .name("study")
-    .description("Run the RazorCascade cost, drift, and quality study.")
+    .description("Run the RazorCascade cost, drift, and quality study or compare existing artifacts.")
     .option("--config <name>", "Named configuration from config.json.")
     .option("--configs <names>", "Comma-separated list of named configurations from config.json.")
     .option("--all", "Run every configuration in config.json.", false)
@@ -1346,6 +1584,21 @@ function buildStudyProgram(): Command {
       console.log("");
       console.log("Mean drift");
       console.log(renderTextBarChart(dashboardData, "meanDriftScore"));
+    });
+
+  program
+    .command("compare")
+    .description("Compare summary.json artifacts from existing experiment folders.")
+    .argument("<experimentFolders...>", "Experiment folders containing summary.json")
+    .option("--output <path>", "Optional file path for the rendered comparison table.")
+    .action(async (experimentFolders: string[], options: { output?: string }) => {
+      const result = await compareStudyArtifacts(experimentFolders, options.output);
+      console.log(result.report.trimEnd());
+
+      if (result.outputPath) {
+        console.log("");
+        console.log(`Comparison written to ${result.outputPath}`);
+      }
     });
 
   return program;

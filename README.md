@@ -164,6 +164,18 @@ bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 bun run study --config openai-mini --runs 1 --snapshot
 ```
 
+## Comparing Existing Experiments
+
+```bash
+# Print a side-by-side post-hoc comparison to stdout
+bun run study compare experiments/2026-03-16T15-22-12-243Z experiments/2026-03-16T18-01-10-165Z
+
+# Save the same comparison table to a file
+bun run study compare experiments/2026-03-16T15-22-12-243Z experiments/2026-03-16T18-01-10-165Z --output experiments/compare-openai.md
+```
+
+The `compare` subcommand reads each experiment folder's `summary.json`, renders a side-by-side Markdown table with the key config metrics, prints it to stdout, and can optionally write the same report to a file. It does not call any model APIs or rerun the study.
+
 Helpful flags:
 
 - `--dry-run`: force deterministic mock clients even if API keys exist. Generated `summary.json`, `report.md`, and `dashboard.html` artifacts are labeled as mock data.
@@ -210,6 +222,8 @@ Each study execution writes a timestamped folder under `experiments/` containing
 - `dashboard.html`: simple zero-dependency HTML visualization with a header badge showing `Mock Data` or `Live API Data`.
 - `report.md`: Markdown summary suitable for publication notes, including the significance-testing table, a cross-provider comparison table when applicable, and a header note indicating whether the run used mock clients or live API calls.
 - `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
+
+The `study compare` subcommand is post-hoc analysis only, so it reads these existing artifacts in place and does not create a new experiment folder unless you explicitly point `--output` at a file path.
 
 If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
 

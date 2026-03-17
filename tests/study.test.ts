@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runStudy } from "../src/study.ts";
+import { main, runStudy } from "../src/study.ts";
 import type { ModelClient } from "../src/models.ts";
 
 describe("study runner", () => {
@@ -329,6 +329,67 @@ describe("study runner", () => {
       expect(flagshipSnapshot.durationMs).toBeGreaterThanOrEqual(0);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("compares existing experiment folders without re-running the study", async () => {
+    const leftOutputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-compare-left-"));
+    const rightOutputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-compare-right-"));
+    const reportDir = await mkdtemp(join(tmpdir(), "razorcascade-study-compare-report-"));
+    const reportPath = join(reportDir, "comparison.md");
+    const originalLog = console.log;
+    const logs: string[] = [];
+
+    try {
+      const baselineResult = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir: leftOutputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+      const pairedResult = await runStudy({
+        configNames: ["baseline-openai", "openai-mini"],
+        runs: 1,
+        outputDir: rightOutputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map((value) => String(value)).join(" "));
+      };
+
+      await main([
+        "bun",
+        "study",
+        "compare",
+        baselineResult.outputFolder,
+        pairedResult.outputFolder,
+        "--output",
+        reportPath,
+      ]);
+
+      const stdout = logs.join("\n");
+      const writtenReport = await Bun.file(reportPath).text();
+
+      expect(stdout).toContain("# RazorCascade Experiment Comparison");
+      expect(stdout).toContain("## Side-by-Side Configuration Metrics");
+      expect(stdout).toContain("baseline-openai (openai, baseline)");
+      expect(stdout).toContain("openai-mini (openai, cascade)");
+      expect(stdout).toContain("Mean Cost (USD)");
+      expect(stdout).toContain("Comparison written to");
+
+      expect(writtenReport).toContain("## Experiments");
+      expect(writtenReport).toContain(baselineResult.outputFolder);
+      expect(writtenReport).toContain(pairedResult.outputFolder);
+      expect(writtenReport).toContain("Cost Savings vs Baseline (%)");
+      expect(writtenReport).toContain("| openai-mini (openai, cascade) | Runs | n/a | 1 |");
+    } finally {
+      console.log = originalLog;
+      await rm(leftOutputDir, { recursive: true, force: true });
+      await rm(rightOutputDir, { recursive: true, force: true });
+      await rm(reportDir, { recursive: true, force: true });
     }
   }, 30000);
 });
