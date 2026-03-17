@@ -15,12 +15,19 @@ export interface ModelPricing {
 
 export interface DashboardDatum {
   label: string;
+  runs?: number;
   meanCostUsd: number;
   meanTokens: number;
   meanQuality: number;
   meanDriftScore: number;
   costSavingsVsBaselinePct?: number | null;
   tokenSavingsVsBaselinePct?: number | null;
+  pValueCost?: number | null;
+  pValueTokens?: number | null;
+  pValueQuality?: number | null;
+  cohensDCost?: number | null;
+  ci95CostLower?: number | null;
+  ci95CostUpper?: number | null;
 }
 
 export interface DashboardCurveDatum {
@@ -533,6 +540,64 @@ function formatMetricValue(metric: "meanCostUsd" | "meanDriftScore", value: numb
   }
 
   return value.toFixed(2);
+}
+
+function formatDashboardNumber(value: number | null | undefined, decimals: number): string {
+  return typeof value === "number" ? value.toFixed(decimals) : "n/a";
+}
+
+function formatDashboardPercent(value: number | null | undefined): string {
+  return typeof value === "number" ? `${value.toFixed(2)}%` : "n/a";
+}
+
+function formatCostInterval(item: DashboardDatum): string {
+  return typeof item.ci95CostLower === "number" && typeof item.ci95CostUpper === "number"
+    ? `$${item.ci95CostLower.toFixed(4)} to $${item.ci95CostUpper.toFixed(4)}`
+    : "n/a";
+}
+
+function describeStatisticalSignal(item: DashboardDatum): {
+  title: string;
+  detail: string;
+  tone: "stable" | "warning";
+} {
+  if (typeof item.costSavingsVsBaselinePct !== "number" || item.costSavingsVsBaselinePct === 0) {
+    return {
+      title: "Reference configuration",
+      detail: "This row is the baseline used for matched comparisons.",
+      tone: "stable",
+    };
+  }
+
+  if ((item.runs ?? 0) < 2) {
+    return {
+      title: "Insufficient repeated runs",
+      detail: "One run per configuration can show directional differences, but not publication-grade significance.",
+      tone: "warning",
+    };
+  }
+
+  if (typeof item.pValueCost === "number") {
+    if (item.pValueCost < 0.05) {
+      return {
+        title: "Cost difference is statistically significant",
+        detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)}.`,
+        tone: "stable",
+      };
+    }
+
+    return {
+      title: "Cost difference is not statistically significant",
+      detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)}.`,
+      tone: "warning",
+    };
+  }
+
+  return {
+    title: "No matched baseline comparison",
+    detail: "Significance fields are only available when the configuration has a same-provider baseline.",
+    tone: "warning",
+  };
 }
 
 function buildTickValues(min: number, max: number, tickCount = 5): number[] {
@@ -1065,6 +1130,48 @@ export async function writeHtmlDashboard(
         color: #8f2d56;
       }
 
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .stat-card {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .stat-card h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .stat-card p {
+        margin: 0;
+      }
+
+      .stat-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .stat-list span {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .stat-list strong {
+        color: var(--ink);
+      }
+
       .metric-hint {
         margin: 0;
       }
@@ -1092,16 +1199,49 @@ export async function writeHtmlDashboard(
       <p>Mean cost, drift, tokens, and quality by configuration.</p>
       <section class="grid">
         ${data
-          .map(
-            (item) => `<article class="card">
+          .map((item) => {
+            const statisticalSignal = describeStatisticalSignal(item);
+            return `<article class="card">
           <div class="label"><span>${escapeHtml(item.label)}</span><span>${item.costSavingsVsBaselinePct ?? "n/a"}% cost savings</span></div>
           <p>$${item.meanCostUsd.toFixed(4)} mean cost</p>
           <p>${item.meanDriftScore.toFixed(2)} mean drift</p>
           <p>${Math.round(item.meanTokens).toLocaleString()} mean tokens</p>
           <p>${item.meanQuality.toFixed(2)} / 10 mean quality</p>
-        </article>`,
-          )
+          <p>95% cost CI: ${escapeHtml(formatCostInterval(item))}</p>
+          <div class="drift-row-meta">
+            <span class="status-pill ${statisticalSignal.tone}">${escapeHtml(statisticalSignal.title)}</span>
+          </div>
+        </article>`;
+          })
           .join("")}
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Statistical Analysis</h2>
+        <p>Matched baseline comparisons use Welch's t-test for unequal variances, Cohen's d for cost effect size, and 95% confidence intervals around mean cost.</p>
+        <div class="stat-grid">
+          ${data
+            .map((item) => {
+              const statisticalSignal = describeStatisticalSignal(item);
+              return `<article class="stat-card">
+            <div>
+              <h3>${escapeHtml(item.label)}</h3>
+              <p>${escapeHtml(statisticalSignal.detail)}</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill ${statisticalSignal.tone}">${escapeHtml(statisticalSignal.title)}</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>${item.runs ?? "n/a"}</strong></span>
+              <span><span>95% cost CI</span><strong>${escapeHtml(formatCostInterval(item))}</strong></span>
+              <span><span>Cost p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueCost, 6))}</strong></span>
+              <span><span>Token p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueTokens, 6))}</strong></span>
+              <span><span>Quality p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueQuality, 6))}</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>${escapeHtml(formatDashboardNumber(item.cohensDCost, 4))}</strong></span>
+            </div>
+          </article>`;
+            })
+            .join("")}
+        </div>
       </section>
       <section class="card" style="margin-top: 22px;">
         <h2>Iteration Cost Curve</h2>
@@ -1164,8 +1304,11 @@ export async function writeHtmlDashboard(
               <th>Mean Drift</th>
               <th>Mean Tokens</th>
               <th>Mean Quality</th>
+              <th>95% Cost CI</th>
               <th>Cost Savings</th>
               <th>Token Savings</th>
+              <th>Cost p-value</th>
+              <th>Cohen's d</th>
             </tr>
           </thead>
           <tbody>
@@ -1177,8 +1320,11 @@ export async function writeHtmlDashboard(
               <td>${item.meanDriftScore.toFixed(2)}</td>
               <td>${Math.round(item.meanTokens).toLocaleString()}</td>
               <td>${item.meanQuality.toFixed(2)}</td>
-              <td>${item.costSavingsVsBaselinePct ?? "n/a"}%</td>
-              <td>${item.tokenSavingsVsBaselinePct ?? "n/a"}%</td>
+              <td>${escapeHtml(formatCostInterval(item))}</td>
+              <td>${escapeHtml(formatDashboardPercent(item.costSavingsVsBaselinePct))}</td>
+              <td>${escapeHtml(formatDashboardPercent(item.tokenSavingsVsBaselinePct))}</td>
+              <td>${escapeHtml(formatDashboardNumber(item.pValueCost, 6))}</td>
+              <td>${escapeHtml(formatDashboardNumber(item.cohensDCost, 4))}</td>
             </tr>`,
               )
               .join("")}

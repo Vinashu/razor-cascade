@@ -541,7 +541,7 @@ async function executeRun(
   };
 }
 
-function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> {
+export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> {
   const grouped = new Map<string, RunRecord[]>();
   for (const run of runs) {
     const list = grouped.get(run.config) ?? [];
@@ -577,11 +577,19 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
     const baselineTokenMean = summarizeNumbers(matchingBaselineRuns.map((run) => run.totalTokens)).mean;
     const isBaselineConfig = representativeRun?.mode === "baseline";
     const hasMatchingBaseline = !isBaselineConfig && matchingBaselineRuns.length > 0;
+    const hasEnoughSamplesForSignificance =
+      hasMatchingBaseline &&
+      costSamples.length > 1 &&
+      baselineCostSamples.length > 1 &&
+      tokenSamples.length > 1 &&
+      baselineTokenSamples.length > 1 &&
+      qualitySamples.length > 1 &&
+      baselineQualitySamples.length > 1;
     const costInterval = confidenceInterval(costSamples);
-    const costTTest = hasMatchingBaseline ? welchTTest(costSamples, baselineCostSamples) : null;
-    const tokenTTest = hasMatchingBaseline ? welchTTest(tokenSamples, baselineTokenSamples) : null;
-    const qualityTTest = hasMatchingBaseline ? welchTTest(qualitySamples, baselineQualitySamples) : null;
-    const costEffectSize = hasMatchingBaseline ? cohensD(costSamples, baselineCostSamples) : null;
+    const costTTest = hasEnoughSamplesForSignificance ? welchTTest(costSamples, baselineCostSamples) : null;
+    const tokenTTest = hasEnoughSamplesForSignificance ? welchTTest(tokenSamples, baselineTokenSamples) : null;
+    const qualityTTest = hasEnoughSamplesForSignificance ? welchTTest(qualitySamples, baselineQualitySamples) : null;
+    const costEffectSize = hasEnoughSamplesForSignificance ? cohensD(costSamples, baselineCostSamples) : null;
 
     return {
       config: configName,
@@ -619,7 +627,7 @@ function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> 
   });
 }
 
-function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCurveDatum[] {
+export function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCurveDatum[] {
   const perRunStep = new Map<string, {
     label: string;
     runId: number;
@@ -667,7 +675,7 @@ function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCurveDatum
     .sort((left, right) => left.label.localeCompare(right.label) || left.stepNumber - right.stepNumber);
 }
 
-function buildMarkdownSummary(
+export function buildMarkdownSummary(
   summaryRows: Array<Record<string, unknown>>,
   outputFolder: string,
   tests: TestCacheResult,
@@ -760,6 +768,7 @@ export async function runStudy(options: {
   const dashboardCurveData = buildDashboardCurveData(stepRecords);
   const dashboardData: DashboardDatum[] = summaryRecords.map((row) => ({
     label: String(row.config),
+    runs: typeof row.runs === "number" ? row.runs : Number(row.runs),
     meanCostUsd: Number(row.mean_cost_usd),
     meanTokens: Number(row.mean_tokens),
     meanQuality: Number(row.mean_quality),
@@ -768,6 +777,12 @@ export async function runStudy(options: {
       row.cost_savings_vs_baseline_pct === null ? null : Number(row.cost_savings_vs_baseline_pct),
     tokenSavingsVsBaselinePct:
       row.token_savings_vs_baseline_pct === null ? null : Number(row.token_savings_vs_baseline_pct),
+    pValueCost: row.pValue_cost === null ? null : Number(row.pValue_cost),
+    pValueTokens: row.pValue_tokens === null ? null : Number(row.pValue_tokens),
+    pValueQuality: row.pValue_quality === null ? null : Number(row.pValue_quality),
+    cohensDCost: row.cohensD_cost === null ? null : Number(row.cohensD_cost),
+    ci95CostLower: row.ci95_cost_lower === null ? null : Number(row.ci95_cost_lower),
+    ci95CostUpper: row.ci95_cost_upper === null ? null : Number(row.ci95_cost_upper),
   }));
 
   await writeCsv(join(outputFolder, "steps.csv"), stepRecords as unknown as Array<Record<string, unknown>>);
@@ -823,6 +838,7 @@ function buildStudyProgram(): Command {
 
       const dashboardData: DashboardDatum[] = result.summaryRecords.map((row) => ({
         label: String(row.config),
+        runs: typeof row.runs === "number" ? row.runs : Number(row.runs),
         meanCostUsd: Number(row.mean_cost_usd),
         meanTokens: Number(row.mean_tokens),
         meanQuality: Number(row.mean_quality),
@@ -831,6 +847,12 @@ function buildStudyProgram(): Command {
           row.cost_savings_vs_baseline_pct === null ? null : Number(row.cost_savings_vs_baseline_pct),
         tokenSavingsVsBaselinePct:
           row.token_savings_vs_baseline_pct === null ? null : Number(row.token_savings_vs_baseline_pct),
+        pValueCost: row.pValue_cost === null ? null : Number(row.pValue_cost),
+        pValueTokens: row.pValue_tokens === null ? null : Number(row.pValue_tokens),
+        pValueQuality: row.pValue_quality === null ? null : Number(row.pValue_quality),
+        cohensDCost: row.cohensD_cost === null ? null : Number(row.cohensD_cost),
+        ci95CostLower: row.ci95_cost_lower === null ? null : Number(row.ci95_cost_lower),
+        ci95CostUpper: row.ci95_cost_upper === null ? null : Number(row.ci95_cost_upper),
       }));
 
       console.log(`Artifacts written to ${result.outputFolder}`);

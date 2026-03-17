@@ -76,21 +76,35 @@ describe("metrics", () => {
         [
           {
             label: "baseline-openai",
+            runs: 3,
             meanCostUsd: 0.2194,
             meanTokens: 46041,
             meanQuality: 9.9,
             meanDriftScore: 0,
             costSavingsVsBaselinePct: 0,
             tokenSavingsVsBaselinePct: 0,
+            pValueCost: null,
+            pValueTokens: null,
+            pValueQuality: null,
+            cohensDCost: null,
+            ci95CostLower: 0.2051,
+            ci95CostUpper: 0.2337,
           },
           {
             label: "openai-nano",
+            runs: 3,
             meanCostUsd: 0.1018,
             meanTokens: 57815,
             meanQuality: 9.71,
             meanDriftScore: 0,
             costSavingsVsBaselinePct: 53.6,
             tokenSavingsVsBaselinePct: -25.57,
+            pValueCost: 0.013421,
+            pValueTokens: 0.0921,
+            pValueQuality: 0.2811,
+            cohensDCost: -1.2874,
+            ci95CostLower: 0.0942,
+            ci95CostUpper: 0.1094,
           },
         ],
         [
@@ -106,6 +120,10 @@ describe("metrics", () => {
       expect(html).toContain("No drift detected across compared iterations.");
       expect(html).toContain("No drift observed across compared configurations.");
       expect(html).toContain("Stable memory");
+      expect(html).toContain("Statistical Analysis");
+      expect(html).toContain("Cost p-value");
+      expect(html).toContain("Cohen's d (cost)");
+      expect(html).toContain("statistically significant");
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
