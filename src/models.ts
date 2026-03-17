@@ -37,6 +37,11 @@ export interface CreateModelClientOptions {
   fallbackToMock?: boolean;
 }
 
+export interface RetryOptions {
+  maxRetries?: number;
+  baseDelayMs?: number;
+}
+
 export const DEFAULT_MODELS: Record<ProviderName, Record<ModelRole, string>> = {
   openai: {
     flagship: "gpt-5.4",
@@ -104,6 +109,165 @@ export function resolveModelFromEnv(
 export function detectPreferredProvider(env: NodeJS.ProcessEnv = process.env): ProviderName | null {
   const orderedProviders: ProviderName[] = ["openai", "anthropic", "xai", "gemini"];
   return orderedProviders.find((provider) => Boolean(getProviderApiKey(provider, env))) ?? null;
+}
+
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503]);
+const RETRYABLE_ERROR_CODES = new Set([
+  "ECONNABORTED",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EAI_AGAIN",
+  "ENETDOWN",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "EHOSTUNREACH",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+const RETRYABLE_MESSAGE_SNIPPETS = [
+  "connection error",
+  "fetch failed",
+  "network error",
+  "network request failed",
+  "socket hang up",
+  "temporarily unavailable",
+  "timed out",
+];
+
+class HttpStatusError extends Error {
+  public readonly status: number;
+
+  public constructor(message: string, status: number) {
+    super(message);
+    this.name = "HttpStatusError";
+    this.status = status;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function getNestedRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  const record = getNestedRecord(error);
+  if (!record) {
+    return undefined;
+  }
+
+  if (typeof record.status === "number") {
+    return record.status;
+  }
+
+  if (typeof record.statusCode === "number") {
+    return record.statusCode;
+  }
+
+  const response = getNestedRecord(record.response);
+  if (response && typeof response.status === "number") {
+    return response.status;
+  }
+
+  return getErrorStatus(record.cause);
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  const record = getNestedRecord(error);
+  if (!record) {
+    return undefined;
+  }
+
+  if (typeof record.code === "string" && record.code.trim()) {
+    return record.code.trim().toUpperCase();
+  }
+
+  return getErrorCode(record.cause);
+}
+
+function getErrorName(error: unknown): string {
+  return error instanceof Error ? error.name : "";
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return typeof error === "string" ? error : "";
+}
+
+function isUserAbortError(error: unknown): boolean {
+  const name = getErrorName(error).toLowerCase();
+  const message = getErrorMessage(error).toLowerCase();
+  return name.includes("abort") || message === "request was aborted.";
+}
+
+function isRetryableNetworkError(error: unknown): boolean {
+  if (isUserAbortError(error)) {
+    return false;
+  }
+
+  const code = getErrorCode(error);
+  if (code && RETRYABLE_ERROR_CODES.has(code)) {
+    return true;
+  }
+
+  const name = getErrorName(error).toLowerCase();
+  if (name.includes("apiconnectionerror") || name.includes("timeout")) {
+    return true;
+  }
+
+  const message = getErrorMessage(error).toLowerCase();
+  return RETRYABLE_MESSAGE_SNIPPETS.some((snippet) => message.includes(snippet));
+}
+
+function isRetryableError(error: unknown): boolean {
+  const status = getErrorStatus(error);
+  if (typeof status === "number") {
+    return RETRYABLE_STATUS_CODES.has(status);
+  }
+
+  return isRetryableNetworkError(error);
+}
+
+function getRetryDelayMs(attemptNumber: number, baseDelayMs: number): number {
+  if (baseDelayMs <= 0) {
+    return 0;
+  }
+
+  const exponentialDelayMs = baseDelayMs * 2 ** (attemptNumber - 1);
+  const jitterMs = Math.random() * baseDelayMs;
+  return Math.round(exponentialDelayMs + jitterMs);
+}
+
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+  const maxRetries = options.maxRetries ?? 3;
+  const baseDelayMs = options.baseDelayMs ?? 1_000;
+  let retriesUsed = 0;
+
+  while (true) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isRetryableError(error) || retriesUsed >= maxRetries) {
+        throw error;
+      }
+
+      retriesUsed += 1;
+      await sleep(getRetryDelayMs(retriesUsed, baseDelayMs));
+    }
+  }
 }
 
 function hashString(text: string): number {
@@ -269,45 +433,47 @@ async function createOpenAiClient(options: CreateModelClientOptions): Promise<Mo
     model: options.model,
     mode: "live",
     async generateText(request) {
-      const responsePayload: {
-        model: string;
-        input: Array<{
-          role: "system" | "user";
-          content: Array<{ type: "input_text"; text: string }>;
-        }>;
-        max_output_tokens: number;
-        temperature?: number;
-      } = {
-        model: options.model,
-        input: [
-          {
-            role: "system",
-            content: [{ type: "input_text", text: request.system }],
+      return withRetry(async () => {
+        const responsePayload: {
+          model: string;
+          input: Array<{
+            role: "system" | "user";
+            content: Array<{ type: "input_text"; text: string }>;
+          }>;
+          max_output_tokens: number;
+          temperature?: number;
+        } = {
+          model: options.model,
+          input: [
+            {
+              role: "system",
+              content: [{ type: "input_text", text: request.system }],
+            },
+            {
+              role: "user",
+              content: [{ type: "input_text", text: request.prompt }],
+            },
+          ],
+          max_output_tokens: request.maxOutputTokens ?? 1_200,
+        };
+
+        // Some newer OpenAI models reject temperature entirely.
+        if (!/^gpt-5/i.test(options.model)) {
+          responsePayload.temperature = request.temperature ?? 0.2;
+        }
+
+        const response = await client.responses.create(responsePayload);
+
+        const text = extractOpenAiResponseText(response as unknown as Record<string, unknown>);
+        return {
+          text,
+          usage: {
+            inputTokens: response.usage?.input_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
+            outputTokens: response.usage?.output_tokens ?? estimateTokens(text),
           },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: request.prompt }],
-          },
-        ],
-        max_output_tokens: request.maxOutputTokens ?? 1_200,
-      };
-
-      // Some newer OpenAI models reject temperature entirely.
-      if (!/^gpt-5/i.test(options.model)) {
-        responsePayload.temperature = request.temperature ?? 0.2;
-      }
-
-      const response = await client.responses.create(responsePayload);
-
-      const text = extractOpenAiResponseText(response as unknown as Record<string, unknown>);
-      return {
-        text,
-        usage: {
-          inputTokens: response.usage?.input_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
-          outputTokens: response.usage?.output_tokens ?? estimateTokens(text),
-        },
-        raw: response,
-      };
+          raw: response,
+        };
+      });
     },
   };
 }
@@ -339,29 +505,31 @@ async function createAnthropicClient(options: CreateModelClientOptions): Promise
     model: options.model,
     mode: "live",
     async generateText(request) {
-      const response = await client.messages.create({
-        model: options.model,
-        system: request.system,
-        temperature: request.temperature ?? 0.2,
-        max_tokens: request.maxOutputTokens ?? 1_200,
-        messages: [
-          {
-            role: "user",
-            content: request.prompt,
-          },
-        ],
-      });
+      return withRetry(async () => {
+        const response = await client.messages.create({
+          model: options.model,
+          system: request.system,
+          temperature: request.temperature ?? 0.2,
+          max_tokens: request.maxOutputTokens ?? 1_200,
+          messages: [
+            {
+              role: "user",
+              content: request.prompt,
+            },
+          ],
+        });
 
-      const raw = response as unknown as Record<string, unknown>;
-      const text = extractAnthropicText(raw);
-      return {
-        text,
-        usage: {
-          inputTokens: response.usage?.input_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
-          outputTokens: response.usage?.output_tokens ?? estimateTokens(text),
-        },
-        raw: response,
-      };
+        const raw = response as unknown as Record<string, unknown>;
+        const text = extractAnthropicText(raw);
+        return {
+          text,
+          usage: {
+            inputTokens: response.usage?.input_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
+            outputTokens: response.usage?.output_tokens ?? estimateTokens(text),
+          },
+          raw: response,
+        };
+      });
     },
   };
 }
@@ -372,40 +540,42 @@ async function createXaiCompatClient(options: CreateModelClientOptions): Promise
     model: options.model,
     mode: "live",
     async generateText(request) {
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${options.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: options.model,
-          messages: [
-            { role: "system", content: request.system },
-            { role: "user", content: request.prompt },
-          ],
-          temperature: request.temperature ?? 0.2,
-          max_tokens: request.maxOutputTokens ?? 1_200,
-        }),
+      return withRetry(async () => {
+        const response = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${options.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.model,
+            messages: [
+              { role: "system", content: request.system },
+              { role: "user", content: request.prompt },
+            ],
+            temperature: request.temperature ?? 0.2,
+            max_tokens: request.maxOutputTokens ?? 1_200,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new HttpStatusError(`xAI request failed with status ${response.status}.`, response.status);
+        }
+
+        const body = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number };
+        };
+        const text = body.choices?.map((choice) => choice.message?.content ?? "").join("\n").trim() ?? "";
+        return {
+          text,
+          usage: {
+            inputTokens: body.usage?.prompt_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
+            outputTokens: body.usage?.completion_tokens ?? estimateTokens(text),
+          },
+          raw: body,
+        };
       });
-
-      if (!response.ok) {
-        throw new Error(`xAI request failed with status ${response.status}.`);
-      }
-
-      const body = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
-      };
-      const text = body.choices?.map((choice) => choice.message?.content ?? "").join("\n").trim() ?? "";
-      return {
-        text,
-        usage: {
-          inputTokens: body.usage?.prompt_tokens ?? estimateTokens(`${request.system}\n${request.prompt}`),
-          outputTokens: body.usage?.completion_tokens ?? estimateTokens(text),
-        },
-        raw: body,
-      };
     },
   };
 }
@@ -425,25 +595,27 @@ async function createGeminiClient(options: CreateModelClientOptions): Promise<Mo
     model: options.model,
     mode: "live",
     async generateText(request) {
-      const response = await client.models.generateContent({
-        model: options.model,
-        config: {
-          systemInstruction: request.system,
-          temperature: request.temperature ?? 0.2,
-          maxOutputTokens: request.maxOutputTokens ?? 1_200,
-        },
-        contents: request.prompt,
-      });
+      return withRetry(async () => {
+        const response = await client.models.generateContent({
+          model: options.model,
+          config: {
+            systemInstruction: request.system,
+            temperature: request.temperature ?? 0.2,
+            maxOutputTokens: request.maxOutputTokens ?? 1_200,
+          },
+          contents: request.prompt,
+        });
 
-      const text = response.text?.trim() ?? "";
-      return {
-        text,
-        usage: {
-          inputTokens: response.usageMetadata?.promptTokenCount ?? estimateTokens(`${request.system}\n${request.prompt}`),
-          outputTokens: response.usageMetadata?.candidatesTokenCount ?? estimateTokens(text),
-        },
-        raw: response,
-      };
+        const text = response.text?.trim() ?? "";
+        return {
+          text,
+          usage: {
+            inputTokens: response.usageMetadata?.promptTokenCount ?? estimateTokens(`${request.system}\n${request.prompt}`),
+            outputTokens: response.usageMetadata?.candidatesTokenCount ?? estimateTokens(text),
+          },
+          raw: response,
+        };
+      });
     },
   };
 }
