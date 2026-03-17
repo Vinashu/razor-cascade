@@ -173,6 +173,8 @@ Judge mode sends the task objective plus the flagship response to a short rubric
 
 Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 
+Live API runs also include automatic retry with exponential backoff and jitter for transient failures such as rate limits, 5xx responses, and short network interruptions. Non-retryable request errors such as invalid authentication or malformed input are surfaced immediately.
+
 ## Gate Prompt
 
 The summarizer in [`src/gate.ts`](./src/gate.ts) uses this default system prompt:
@@ -195,9 +197,9 @@ Each study execution writes a timestamped folder under `experiments/` containing
 
 - `steps.csv`: per-step token, duration, cost, and quality metrics.
 - `runs.csv`: per-run aggregate results.
-- `summary.json`: config-level statistics and baseline comparisons.
+- `summary.json`: config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals.
 - `dashboard.html`: simple zero-dependency HTML visualization.
-- `report.md`: Markdown summary suitable for publication notes.
+- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table.
 
 If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
 
@@ -209,6 +211,9 @@ The runner reports:
 - Estimated USD cost using the March 2026 price table.
 - Mean, median, min, max, and standard deviation by configuration.
 - Cost and token savings versus baseline.
+- Welch's t-test p-values for cost, token, and quality comparisons when matched baseline samples are available.
+- Cohen's d effect size for cost versus the matched baseline.
+- 95% confidence intervals for per-configuration cost.
 - Average quality score by task and by configuration.
 - Quality via either the default heuristic scorer or optional LLM-as-judge scoring with a 10-point rubric.
 - Cached local test pass status for the current repository.
