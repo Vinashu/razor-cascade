@@ -262,7 +262,15 @@ export function estimateTokens(text: string): number {
     return 0;
   }
 
-  return Math.max(1, Math.ceil(normalized.length / 4));
+  const wordCount = (normalized.match(/[A-Za-z0-9_]+/g) ?? []).length;
+  const specialCharacterCount = (normalized.match(/[()[\]{}<>.,!?;:'"`~@#$%^&*+=|\\/:-]/g) ?? []).length;
+  const estimate = (wordCount * 1.3) + (specialCharacterCount * 0.5);
+
+  if (estimate === 0) {
+    return Math.max(1, Math.ceil(normalized.length / 2));
+  }
+
+  return Math.max(1, Math.ceil(estimate));
 }
 
 export function totalTokens(usage: TokenUsage): number {

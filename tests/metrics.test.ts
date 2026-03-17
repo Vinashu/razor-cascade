@@ -40,7 +40,16 @@ describe("metrics", () => {
 
     expect(csv).toContain("config,cost");
     expect(csv).toContain("baseline");
-    expect(estimateTokens("token budget")).toBeGreaterThan(0);
+    expect(estimateTokens("token budget")).toBe(3);
+  });
+
+  test("weights punctuation and operators when estimating code-heavy text", () => {
+    expect(estimateTokens("if (count <= 10) return count + 1;")).toBe(11);
+  });
+
+  test("returns zero for empty or whitespace-only text", () => {
+    expect(estimateTokens("")).toBe(0);
+    expect(estimateTokens("   \n\t  ")).toBe(0);
   });
 
   test("computes Welch's t-test with a known two-tailed p-value", () => {

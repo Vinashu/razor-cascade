@@ -215,6 +215,7 @@ If a study stops early because of `--cost-cap`, these artifacts still reflect al
 The runner reports:
 
 - Input, output, and total token counts.
+- Dependency-free fallback token estimates using a weighted word + punctuation/operator heuristic when a provider omits usage metadata.
 - Estimated USD cost using the March 2026 price table.
 - Mean, median, min, max, and standard deviation by configuration.
 - Cost and token savings versus baseline.
@@ -236,5 +237,6 @@ The runner reports:
 ## Notes
 
 - Live provider integrations are supported, but the repo is runnable without keys through deterministic mock mode.
+- When live provider responses include token usage metadata, RazorCascade always uses those actual counts instead of the fallback estimator.
 - The xAI adapter uses the OpenAI-compatible xAI REST API path so the repo stays easy to install and run.
 - The study runner focuses on cost/quality instrumentation and prompt-context management rather than mutating this repository's source files during each simulated run.
