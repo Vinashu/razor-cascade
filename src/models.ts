@@ -149,6 +149,23 @@ function buildMockGateJson(prompt: string): string {
   );
 }
 
+function buildMockJudgeJson(request: ModelRequest, model: string): string {
+  const seed = hashString(`${model}:${request.prompt}`);
+  const completeness = 1 + (seed % 3);
+  const correctness = 1 + ((seed >> 2) % 3);
+  const clarity = (seed >> 4) % 3;
+  const architecture = (seed >> 6) % 3;
+  const score = Math.min(10, completeness + correctness + clarity + architecture);
+
+  return JSON.stringify(
+    {
+      score,
+    },
+    null,
+    2,
+  );
+}
+
 function buildMockExecutionText(request: ModelRequest, model: string): string {
   const seed = hashString(`${model}:${request.system}:${request.prompt}`);
   const style = pickItem(
@@ -189,7 +206,12 @@ class MockModelClient implements ModelClient {
   ) {}
 
   public async generateText(request: ModelRequest): Promise<ModelResponse> {
-    const rawText = request.metadata?.kind === "gate" ? buildMockGateJson(request.prompt) : buildMockExecutionText(request, this.model);
+    const rawText =
+      request.metadata?.kind === "gate"
+        ? buildMockGateJson(request.prompt)
+        : request.metadata?.kind === "judge"
+          ? buildMockJudgeJson(request, this.model)
+          : buildMockExecutionText(request, this.model);
     const usage = {
       inputTokens: estimateTokens(`${request.system}\n${request.prompt}`),
       outputTokens: estimateTokens(rawText),

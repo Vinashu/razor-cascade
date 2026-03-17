@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { runStudy } from "../src/study.ts";
+import type { ModelClient } from "../src/models.ts";
 
 describe("study runner", () => {
   test("executes baseline aliases and explicit provider baselines in dry-run mode", async () => {
@@ -95,6 +96,77 @@ describe("study runner", () => {
       expect(report).toContain("Cost p-value");
       expect(report).toContain("Cohen's d (Cost)");
     } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("supports LLM judge scoring with an optional judge model in dry-run mode", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-"));
+
+    try {
+      const result = await runStudy({
+        configName: "openai-mini",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+        judge: true,
+        judgeModel: "gpt-5-nano",
+      });
+
+      expect(result.runRecords.length).toBe(1);
+      expect(result.stepRecords.filter((step) => step.modelRole === "flagship")).toHaveLength(10);
+      expect(result.stepRecords.every((step) => step.qualityScore >= 0 && step.qualityScore <= 10)).toBe(true);
+      expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
+      expect(result.runRecords[0]?.usedMockClients).toBe(true);
+
+      const stepsCsv = await Bun.file(join(result.outputFolder, "steps.csv")).text();
+      expect(stepsCsv).toContain("qualityScore");
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("falls back to heuristic scoring when judge output is empty", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-fallback-"));
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+
+    console.warn = (message?: unknown) => {
+      warnings.push(String(message ?? ""));
+    };
+
+    try {
+      const emptyJudge: ModelClient = {
+        provider: "openai",
+        model: "gpt-5-nano",
+        mode: "mock",
+        async generateText() {
+          return {
+            text: "",
+            usage: {
+              inputTokens: 1,
+              outputTokens: 0,
+            },
+          };
+        },
+      };
+
+      const result = await runStudy({
+        configName: "openai-mini",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+        judge: true,
+        judgeClient: emptyJudge,
+      });
+
+      expect(result.runRecords.length).toBe(1);
+      expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
+      expect(warnings.some((warning) => warning.includes("falling back to heuristic scoring"))).toBe(true);
+    } finally {
+      console.warn = originalWarn;
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);

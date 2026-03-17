@@ -52,6 +52,10 @@ const StudyConfigFileSchema = z.object({
   configs: z.array(StudyConfigSchema),
 });
 
+const JudgeScoreSchema = z.object({
+  score: z.number().min(0).max(10),
+});
+
 export type StudyMode = z.infer<typeof StudyModeSchema>;
 export type StudyConfig = z.infer<typeof StudyConfigSchema>;
 
@@ -122,12 +126,17 @@ interface StudyTaskResponse {
   inputTokens: number;
   outputTokens: number;
   durationMs: number;
-  qualityScore: number;
 }
 
 interface TestCacheResult {
   passed: boolean | null;
   output: string;
+}
+
+interface StudyClients {
+  flagship: ModelClient;
+  gate?: ModelClient;
+  judge?: ModelClient;
 }
 
 const STUDY_TASKS: StudyTask[] = [
@@ -264,11 +273,103 @@ function scoreTaskOutput(task: StudyTask, text: string, testsPassed: boolean | n
   return Math.max(0, Math.min(10, Math.round(raw * 10) / 10));
 }
 
+function parseJudgeScore(text: string): number {
+  const trimmed = text.trim();
+
+  try {
+    const directJson = JudgeScoreSchema.safeParse(JSON.parse(trimmed) as unknown);
+    if (directJson.success) {
+      return roundNumber(directJson.data.score, 1);
+    }
+  } catch {
+    // Fall through to alternate parsing strategies below.
+  }
+
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JudgeScoreSchema.safeParse(JSON.parse(jsonMatch[0]) as unknown);
+      if (parsed.success) {
+        return roundNumber(parsed.data.score, 1);
+      }
+    } catch {
+      // Fall through to regex parsing below.
+    }
+  }
+
+  const labeledMatch = trimmed.match(/(?:^|\b)(?:score|total)\D{0,12}(10|[0-9](?:\.\d+)?)(?:\b|\/10)/i);
+  if (labeledMatch) {
+    return roundNumber(Math.min(10, Math.max(0, Number(labeledMatch[1]))), 1);
+  }
+
+  const fractionMatch = trimmed.match(/\b(10|[0-9](?:\.\d+)?)\s*\/\s*10\b/);
+  if (fractionMatch) {
+    return roundNumber(Math.min(10, Math.max(0, Number(fractionMatch[1]))), 1);
+  }
+
+  throw new Error(`Unable to parse judge score from response: ${trimmed}`);
+}
+
+export async function llmJudgeScore(
+  client: ModelClient,
+  task: StudyTask,
+  responseText: string,
+): Promise<number> {
+  const rubricPrompt = `Evaluate the candidate engineering update for this study task.
+
+Task title: ${task.title}
+Task objective: ${task.objective}
+
+Rubric:
+- completeness: 0-3
+- correctness: 0-3
+- clarity: 0-2
+- architecture: 0-2
+- total score: sum of the four category scores, 0-10
+
+Candidate response:
+${responseText}
+
+Return strict JSON only in this shape:
+{"score": 0}`;
+  const response = await client.generateText({
+    system: "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+    prompt: rubricPrompt,
+    maxOutputTokens: 100,
+    metadata: {
+      kind: "judge",
+      task: String(task.number),
+    },
+  });
+
+  return parseJudgeScore(response.text);
+}
+
+async function scoreTaskOutputWithOptionalJudge(
+  task: StudyTask,
+  text: string,
+  testsPassed: boolean | null,
+  judgeClient?: ModelClient,
+): Promise<number> {
+  if (!judgeClient) {
+    return scoreTaskOutput(task, text, testsPassed);
+  }
+
+  try {
+    return await llmJudgeScore(judgeClient, task, text);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `Judge scoring failed for task ${task.number} (${task.title}); falling back to heuristic scoring. Reason: ${reason}`,
+    );
+    return scoreTaskOutput(task, text, testsPassed);
+  }
+}
+
 async function runSingleModelStep(
   client: ModelClient,
   prompt: string,
   task: StudyTask,
-  testsPassed: boolean | null,
 ): Promise<StudyTaskResponse> {
   const startedAt = performance.now();
   const response = await client.generateText({
@@ -281,14 +382,12 @@ async function runSingleModelStep(
     },
   });
   const durationMs = Math.round(performance.now() - startedAt);
-  const qualityScore = scoreTaskOutput(task, response.text, testsPassed);
 
   return {
     text: response.text,
     inputTokens: response.usage.inputTokens,
     outputTokens: response.usage.outputTokens,
     durationMs,
-    qualityScore,
   };
 }
 
@@ -377,10 +476,12 @@ async function resolveSelectedConfigs(options: {
   return [match];
 }
 
-async function createClients(config: StudyConfig, dryRun: boolean): Promise<{
-  flagship: ModelClient;
-  gate?: ModelClient;
-}> {
+async function createClients(
+  config: StudyConfig,
+  dryRun: boolean,
+  judgeEnabled: boolean,
+  judgeModel?: string,
+): Promise<StudyClients> {
   const apiKey = getProviderApiKey(config.provider);
   const fallbackToMock = dryRun || !apiKey;
   const flagship = await createModelClient({
@@ -390,8 +491,19 @@ async function createClients(config: StudyConfig, dryRun: boolean): Promise<{
     fallbackToMock,
   });
 
+  const judge = judgeEnabled
+    ? judgeModel
+      ? await createModelClient({
+        provider: config.provider,
+        model: judgeModel,
+        apiKey,
+        fallbackToMock,
+      })
+      : flagship
+    : undefined;
+
   if (config.mode === "baseline") {
-    return { flagship };
+    return { flagship, judge };
   }
 
   const gateModel = config.gateModel || resolveModelFromEnv(config.provider, "gate");
@@ -402,13 +514,13 @@ async function createClients(config: StudyConfig, dryRun: boolean): Promise<{
     fallbackToMock,
   });
 
-  return { flagship, gate };
+  return { flagship, gate, judge };
 }
 
 async function executeRun(
   config: StudyConfig,
   runId: number,
-  clients: { flagship: ModelClient; gate?: ModelClient },
+  clients: StudyClients,
   testsPassed: boolean | null,
 ): Promise<{ steps: StepRecord[]; run: RunRecord }> {
   const fullHistory: string[] = [];
@@ -419,12 +531,18 @@ async function executeRun(
   for (const task of STUDY_TASKS) {
     const context = config.mode === "baseline" ? fullHistory.join("\n\n") : cascadedContext;
     const prompt = buildTaskPrompt(task, config.mode, context);
-    const flagshipResult = await runSingleModelStep(clients.flagship, prompt, task, testsPassed);
+    const flagshipResult = await runSingleModelStep(clients.flagship, prompt, task);
     const flagshipUsage = {
       inputTokens: flagshipResult.inputTokens,
       outputTokens: flagshipResult.outputTokens,
     };
     const flagshipCost = estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage);
+    const qualityScore = await scoreTaskOutputWithOptionalJudge(
+      task,
+      flagshipResult.text,
+      testsPassed,
+      clients.judge,
+    );
 
     stepRecords.push({
       config: config.name,
@@ -446,9 +564,9 @@ async function executeRun(
       contradictions: 0,
       driftScore: 0,
       durationMs: flagshipResult.durationMs,
-      qualityScore: flagshipResult.qualityScore,
+      qualityScore,
       testsPassed,
-      success: flagshipResult.qualityScore >= 7 && testsPassed !== false,
+      success: qualityScore >= 7 && testsPassed !== false,
     });
 
     fullHistory.push(buildHistoryEntry(task, flagshipResult.text));
@@ -496,7 +614,7 @@ async function executeRun(
         contradictions: driftReport.contradictions,
         driftScore: driftReport.driftScore,
         durationMs: gateDurationMs,
-        qualityScore: flagshipResult.qualityScore,
+        qualityScore,
         testsPassed,
         success: true,
       });
@@ -536,7 +654,10 @@ async function executeRun(
       meanDriftScore: roundNumber(average(iterationAggregates.map((step) => step.driftScore)), 2),
       meanQualityScore: Math.round(average(flagshipSteps.map((step) => step.qualityScore)) * 100) / 100,
       testsPassed,
-      usedMockClients: clients.flagship.mode === "mock" || clients.gate?.mode === "mock",
+      usedMockClients:
+        clients.flagship.mode === "mock" ||
+        clients.gate?.mode === "mock" ||
+        clients.judge?.mode === "mock",
     },
   };
 }
@@ -727,6 +848,9 @@ export async function runStudy(options: {
   provider?: ProviderName;
   flagModel?: string;
   gateModel?: string;
+  judge?: boolean;
+  judgeModel?: string;
+  judgeClient?: ModelClient;
   outputDir?: string;
   dryRun?: boolean;
   skipTests?: boolean;
@@ -756,7 +880,22 @@ export async function runStudy(options: {
   const runRecords: RunRecord[] = [];
 
   for (const config of selectedConfigs) {
-    const clients = await createClients(config, Boolean(options.dryRun));
+    const clients = options.judgeClient
+      ? {
+        ...(await createClients(
+          config,
+          Boolean(options.dryRun),
+          false,
+          options.judgeModel,
+        )),
+        judge: options.judgeClient,
+      }
+      : await createClients(
+        config,
+        Boolean(options.dryRun),
+        Boolean(options.judge),
+        options.judgeModel,
+      );
     for (let runId = 1; runId <= runs; runId += 1) {
       const result = await executeRun(config, runId, clients, cachedTests.passed);
       stepRecords.push(...result.steps);
@@ -812,6 +951,8 @@ function buildStudyProgram(): Command {
     .option("--provider <provider>", "Ad hoc provider override: openai, anthropic, or xai.")
     .option("--flag-model <model>", "Flagship model override.")
     .option("--gate-model <model>", "Gate model override.")
+    .option("--judge", "Score flagship outputs with an LLM judge instead of the heuristic scorer.", false)
+    .option("--judge-model <model>", "Optional judge model override. Defaults to the flagship model.")
     .option("--output-dir <path>", "Root folder for experiment artifacts.")
     .option("--dry-run", "Use deterministic mock clients even if API keys are present.", false)
     .option("--skip-tests", "Skip local tests while running the study.", false)
@@ -831,6 +972,8 @@ function buildStudyProgram(): Command {
         provider,
         flagModel: options.flagModel,
         gateModel: options.gateModel,
+        judge: options.judge,
+        judgeModel: options.judgeModel,
         outputDir: options.outputDir,
         dryRun: options.dryRun,
         skipTests: options.skipTests,
