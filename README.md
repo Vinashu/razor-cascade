@@ -148,6 +148,9 @@ bun run study --config gemini --runs 10
 # Every configured setup
 bun run study --all --runs 10
 
+# Every configured setup with a hard stop once estimated spend is already above $25
+bun run study --all --runs 10 --cost-cap 25
+
 # Just one matched pair in one output folder
 bun run study --configs baseline-openai,openai-mini --runs 10
 
@@ -160,12 +163,15 @@ Helpful flags:
 - `--dry-run`: force deterministic mock clients even if API keys exist.
 - `--skip-tests`: skip local test execution during the study run.
 - `--output-dir <path>`: write artifacts to a custom folder.
+- `--cost-cap <usd>`: stop before the next run once cumulative estimated study cost already exceeds this USD amount.
 - `--configs <name1,name2,...>`: run a comma-separated set of named configs together so paired baselines and cascades land in the same report.
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 - `--judge`: score each flagship response with an LLM judge instead of the built-in heuristic scorer.
 - `--judge-model <model>`: optionally use a separate judge model; if omitted, the flagship model is reused.
 
 Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls are capped to a small output budget to control extra cost.
+
+Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 
 ## Gate Prompt
 
@@ -192,6 +198,8 @@ Each study execution writes a timestamped folder under `experiments/` containing
 - `summary.json`: config-level statistics and baseline comparisons.
 - `dashboard.html`: simple zero-dependency HTML visualization.
 - `report.md`: Markdown summary suitable for publication notes.
+
+If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
 
 ## Quality And Analysis
 
