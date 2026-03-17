@@ -1,6 +1,6 @@
 # RazorCascade-Study
 
-RazorCascade is a reproducible TypeScript + Bun study scaffold for measuring whether same-provider model cascading reduces API cost during incremental software development without materially degrading quality. The repository ships with a working `TaskForge` CLI, provider adapters for OpenAI, Anthropic, and xAI, a gate summarizer, study runner, metrics pipeline, and automated tests.
+RazorCascade is a reproducible TypeScript + Bun study scaffold for measuring whether same-provider model cascading reduces API cost during incremental software development without materially degrading quality. The repository ships with a working `TaskForge` CLI, provider adapters for OpenAI, Anthropic, and xAI, a gate summarizer, study runner, metrics pipeline, strengthened drift detection, and automated tests.
 
 ## Hypothesis
 
@@ -228,6 +228,7 @@ The runner reports:
 - 95% confidence intervals for per-configuration cost.
 - Average quality score by task and by configuration.
 - Quality via either the default heuristic scorer or optional LLM-as-judge scoring with a 10-point rubric.
+- Drift via missing invariants plus contradiction checks for explicit value changes, semantic storage/path mismatches, rule violations, and enum cardinality drift.
 - Cached local test pass status for the current repository.
 
 ## Publication Tips
