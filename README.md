@@ -154,6 +154,9 @@ bun run study --all --runs 10 --cost-cap 25
 # Just one matched pair in one output folder
 bun run study --configs baseline-openai,openai-mini --runs 10
 
+# Cross-provider comparisons in one artifact set
+bun run study --configs openai-mini,anthropic,gemini --runs 10
+
 # One-pass run with LLM-as-judge scoring using GPT-5 nano as the judge
 bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 
@@ -167,7 +170,7 @@ Helpful flags:
 - `--skip-tests`: skip local test execution during the study run.
 - `--output-dir <path>`: write artifacts to a custom folder.
 - `--cost-cap <usd>`: stop before the next run once cumulative estimated study cost already exceeds this USD amount.
-- `--configs <name1,name2,...>`: run a comma-separated set of named configs together so paired baselines and cascades land in the same report.
+- `--configs <name1,name2,...>`: run a comma-separated set of named configs together so paired baselines, cascades, and cross-provider comparisons land in the same report.
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 - `--judge`: score each flagship response with an LLM judge instead of the built-in heuristic scorer.
 - `--judge-model <model>`: optionally use a separate judge model; if omitted, the flagship model is reused.
@@ -203,9 +206,9 @@ Each study execution writes a timestamped folder under `experiments/` containing
 
 - `steps.csv`: per-step token, duration, cost, and quality metrics.
 - `runs.csv`: per-run aggregate results.
-- `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals.
+- `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals. When more than one provider is present, it also includes `cross_provider_comparisons` with pairwise cost ratios, token ratios, and quality deltas across providers.
 - `dashboard.html`: simple zero-dependency HTML visualization with a header badge showing `Mock Data` or `Live API Data`.
-- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table and a header note indicating whether the run used mock clients or live API calls.
+- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table, a cross-provider comparison table when applicable, and a header note indicating whether the run used mock clients or live API calls.
 - `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
 
 If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
@@ -219,6 +222,7 @@ The runner reports:
 - Estimated USD cost using the March 2026 price table.
 - Mean, median, min, max, and standard deviation by configuration.
 - Cost and token savings versus baseline.
+- Cross-provider pairwise cost ratios, token ratios, and quality deltas when multiple providers are included in the same run.
 - Welch's t-test p-values for cost, token, and quality comparisons when matched baseline samples are available.
 - Cohen's d effect size for cost versus the matched baseline.
 - 95% confidence intervals for per-configuration cost.

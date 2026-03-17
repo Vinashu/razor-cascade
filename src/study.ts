@@ -170,9 +170,52 @@ interface StudyClients {
 
 type StudyArtifactDataSource = "mock" | "live";
 
+export interface SummaryRecord {
+  config: string;
+  provider: ProviderName;
+  mode: StudyMode;
+  flagship_model: string;
+  gate_model: string | null;
+  runs: number;
+  mean_cost_usd: number;
+  median_cost_usd: number;
+  stddev_cost_usd: number;
+  mean_tokens: number;
+  median_tokens: number;
+  stddev_tokens: number;
+  mean_invariant_count: number;
+  mean_missing_invariants: number;
+  mean_contradictions: number;
+  mean_drift_score: number;
+  mean_quality: number;
+  median_quality: number;
+  stddev_quality: number;
+  cost_savings_vs_baseline_pct: number | null;
+  token_savings_vs_baseline_pct: number | null;
+  pValue_cost: number | null;
+  pValue_tokens: number | null;
+  pValue_quality: number | null;
+  cohensD_cost: number | null;
+  ci95_cost_lower: number;
+  ci95_cost_upper: number;
+}
+
+export interface CrossProviderComparisonRecord {
+  config_a: string;
+  provider_a: ProviderName;
+  mode_a: StudyMode;
+  config_b: string;
+  provider_b: ProviderName;
+  mode_b: StudyMode;
+  cost_ratio_a_to_b: number | null;
+  token_ratio_a_to_b: number | null;
+  quality_delta_a_minus_b: number;
+}
+
 interface StudySummaryArtifact {
   dataSource: StudyArtifactDataSource;
-  configs: Array<Record<string, unknown>>;
+  configs: SummaryRecord[];
+  cross_provider_comparisons?: CrossProviderComparisonRecord[];
 }
 
 const STUDY_TASKS: StudyTask[] = [
@@ -858,7 +901,40 @@ async function writeSnapshots(outputFolder: string, snapshots: StepSnapshotRecor
   );
 }
 
-export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unknown>> {
+function buildCrossProviderComparisons(summaryRows: SummaryRecord[]): CrossProviderComparisonRecord[] {
+  if (new Set(summaryRows.map((row) => row.provider)).size < 2) {
+    return [];
+  }
+
+  const comparisons: CrossProviderComparisonRecord[] = [];
+  for (let leftIndex = 0; leftIndex < summaryRows.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < summaryRows.length; rightIndex += 1) {
+      const left = summaryRows[leftIndex];
+      const right = summaryRows[rightIndex];
+      if (left.provider === right.provider) {
+        continue;
+      }
+
+      comparisons.push({
+        config_a: left.config,
+        provider_a: left.provider,
+        mode_a: left.mode,
+        config_b: right.config,
+        provider_b: right.provider,
+        mode_b: right.mode,
+        cost_ratio_a_to_b:
+          right.mean_cost_usd > 0 ? roundNumber(left.mean_cost_usd / right.mean_cost_usd, 4) : null,
+        token_ratio_a_to_b:
+          right.mean_tokens > 0 ? roundNumber(left.mean_tokens / right.mean_tokens, 4) : null,
+        quality_delta_a_minus_b: roundNumber(left.mean_quality - right.mean_quality, 4),
+      });
+    }
+  }
+
+  return comparisons;
+}
+
+export function buildSummaryRecords(runs: RunRecord[]): SummaryRecord[] {
   const grouped = new Map<string, RunRecord[]>();
   for (const run of runs) {
     const list = grouped.get(run.config) ?? [];
@@ -875,6 +951,10 @@ export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unk
 
   return Array.from(grouped.entries()).map(([configName, configRuns]) => {
     const representativeRun = configRuns[0];
+    if (!representativeRun) {
+      throw new Error(`Cannot build a summary row for "${configName}" without run records.`);
+    }
+
     const costSamples = configRuns.map((run) => run.totalCostUsd);
     const tokenSamples = configRuns.map((run) => run.totalTokens);
     const qualitySamples = configRuns.map((run) => run.meanQualityScore);
@@ -885,7 +965,7 @@ export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unk
     const invariantCount = summarizeNumbers(configRuns.map((run) => run.meanInvariantCount));
     const missingInvariants = summarizeNumbers(configRuns.map((run) => run.totalMissingInvariants));
     const contradictions = summarizeNumbers(configRuns.map((run) => run.totalContradictions));
-    const baselineConfigName = representativeRun ? baselineConfigByProvider[representativeRun.provider] : undefined;
+    const baselineConfigName = baselineConfigByProvider[representativeRun.provider];
     const matchingBaselineRuns = baselineConfigName ? grouped.get(baselineConfigName) ?? [] : [];
     const baselineCostSamples = matchingBaselineRuns.map((run) => run.totalCostUsd);
     const baselineTokenSamples = matchingBaselineRuns.map((run) => run.totalTokens);
@@ -910,6 +990,10 @@ export function buildSummaryRecords(runs: RunRecord[]): Array<Record<string, unk
 
     return {
       config: configName,
+      provider: representativeRun?.provider ?? "openai",
+      mode: representativeRun?.mode ?? "baseline",
+      flagship_model: representativeRun?.flagshipModel ?? "",
+      gate_model: representativeRun?.gateModel ?? null,
       runs: configRuns.length,
       mean_cost_usd: cost.mean,
       median_cost_usd: cost.median,
@@ -993,20 +1077,23 @@ export function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCur
 }
 
 export function buildMarkdownSummary(
-  summaryRows: Array<Record<string, unknown>>,
+  summaryRows: SummaryRecord[],
+  crossProviderComparisons: CrossProviderComparisonRecord[],
   outputFolder: string,
   tests: TestCacheResult,
   dataSource: StudyArtifactDataSource,
 ): string {
   const formatMetric = (value: unknown, decimals: number): string =>
     typeof value === "number" ? value.toFixed(decimals) : "n/a";
-  const formatCostInterval = (row: Record<string, unknown>): string => {
+  const formatCostInterval = (row: SummaryRecord): string => {
     const lower = row.ci95_cost_lower;
     const upper = row.ci95_cost_upper;
     return typeof lower === "number" && typeof upper === "number"
       ? `[${lower.toFixed(4)}, ${upper.toFixed(4)}]`
       : "n/a";
   };
+  const formatConfigLabel = (config: string, provider: ProviderName, mode: StudyMode): string =>
+    `${config} (${provider}, ${mode})`;
   const lines = [
     "# RazorCascade Memory Reliability Report",
     "",
@@ -1025,6 +1112,20 @@ export function buildMarkdownSummary(
     lines.push(
       `| ${row.config} | ${formatMetric(row.mean_cost_usd, 4)} | ${formatCostInterval(row)} | ${formatMetric(row.mean_drift_score, 2)} | ${formatMetric(row.mean_tokens, 2)} | ${formatMetric(row.mean_quality, 2)} | ${formatMetric(row.cost_savings_vs_baseline_pct, 2)} | ${formatMetric(row.token_savings_vs_baseline_pct, 2)} | ${formatMetric(row.pValue_cost, 6)} | ${formatMetric(row.pValue_tokens, 6)} | ${formatMetric(row.pValue_quality, 6)} | ${formatMetric(row.cohensD_cost, 4)} |`,
     );
+  }
+
+  if (crossProviderComparisons.length > 0) {
+    lines.push("");
+    lines.push("## Cross-Provider Comparisons");
+    lines.push("");
+    lines.push("| Config A | Config B | Cost Ratio (A/B) | Token Ratio (A/B) | Quality Delta (A-B) |");
+    lines.push("| --- | --- | ---: | ---: | ---: |");
+
+    for (const comparison of crossProviderComparisons) {
+      lines.push(
+        `| ${formatConfigLabel(comparison.config_a, comparison.provider_a, comparison.mode_a)} | ${formatConfigLabel(comparison.config_b, comparison.provider_b, comparison.mode_b)} | ${formatMetric(comparison.cost_ratio_a_to_b, 4)} | ${formatMetric(comparison.token_ratio_a_to_b, 4)} | ${formatMetric(comparison.quality_delta_a_minus_b, 4)} |`,
+      );
+    }
   }
 
   lines.push("");
@@ -1058,7 +1159,8 @@ export async function runStudy(options: {
   outputFolder: string;
   stepRecords: StepRecord[];
   runRecords: RunRecord[];
-  summaryRecords: Array<Record<string, unknown>>;
+  summaryRecords: SummaryRecord[];
+  crossProviderComparisons: CrossProviderComparisonRecord[];
   costCapReached: boolean;
 }> {
   const selectedConfigs = await resolveSelectedConfigs({
@@ -1121,10 +1223,14 @@ export async function runStudy(options: {
   }
 
   const summaryRecords = buildSummaryRecords(runRecords);
+  const crossProviderComparisons = buildCrossProviderComparisons(summaryRecords);
   const dataSource = resolveStudyDataSource(runRecords);
   const summaryArtifact: StudySummaryArtifact = {
     dataSource,
     configs: summaryRecords,
+    ...(crossProviderComparisons.length > 0
+      ? { cross_provider_comparisons: crossProviderComparisons }
+      : {}),
   };
   const dashboardCurveData = buildDashboardCurveData(stepRecords);
   const dashboardData: DashboardDatum[] = summaryRecords.map((row) => ({
@@ -1152,7 +1258,7 @@ export async function runStudy(options: {
   await writeHtmlDashboard(join(outputFolder, "dashboard.html"), dataSource, dashboardData, dashboardCurveData);
   await Bun.write(
     join(outputFolder, "report.md"),
-    buildMarkdownSummary(summaryRecords, outputFolder, cachedTests, dataSource),
+    buildMarkdownSummary(summaryRecords, crossProviderComparisons, outputFolder, cachedTests, dataSource),
   );
 
   return {
@@ -1160,6 +1266,7 @@ export async function runStudy(options: {
     stepRecords,
     runRecords,
     summaryRecords,
+    crossProviderComparisons,
     costCapReached,
   };
 }

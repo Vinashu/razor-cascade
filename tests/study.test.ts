@@ -92,15 +92,64 @@ describe("study runner", () => {
       const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
         dataSource?: string;
         configs?: Array<Record<string, unknown>>;
+        cross_provider_comparisons?: Array<Record<string, unknown>>;
       };
       const report = await Bun.file(join(result.outputFolder, "report.md")).text();
       const serializedCascade = summaryJson.configs?.find((row) => row.config === "openai-mini");
 
       expect(summaryJson.dataSource).toBe("mock");
+      expect(summaryJson.cross_provider_comparisons).toBeUndefined();
       expect(Object.hasOwn(serializedCascade ?? {}, "pValue_cost")).toBe(true);
       expect(report).toContain("Data source: mock clients");
       expect(report).toContain("Cost p-value");
       expect(report).toContain("Cohen's d (Cost)");
+      expect(report).not.toContain("## Cross-Provider Comparisons");
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("adds cross-provider comparisons when multiple providers are present", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cross-provider-"));
+
+    try {
+      const result = await runStudy({
+        configNames: ["openai-mini", "anthropic", "gemini"],
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.runRecords.length).toBe(3);
+      expect(result.summaryRecords.length).toBe(3);
+      expect(result.crossProviderComparisons).toHaveLength(3);
+
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
+        dataSource?: string;
+        configs?: Array<Record<string, unknown>>;
+        cross_provider_comparisons?: Array<Record<string, unknown>>;
+      };
+      const report = await Bun.file(join(result.outputFolder, "report.md")).text();
+      const comparison = summaryJson.cross_provider_comparisons?.find(
+        (row) => row.config_a === "openai-mini" && row.config_b === "anthropic",
+      );
+
+      expect(summaryJson.dataSource).toBe("mock");
+      expect(summaryJson.cross_provider_comparisons).toHaveLength(3);
+      expect(comparison?.provider_a).toBe("openai");
+      expect(comparison?.mode_a).toBe("cascade");
+      expect(comparison?.provider_b).toBe("anthropic");
+      expect(comparison?.mode_b).toBe("cascade");
+      expect(typeof comparison?.cost_ratio_a_to_b).toBe("number");
+      expect(typeof comparison?.token_ratio_a_to_b).toBe("number");
+      expect(typeof comparison?.quality_delta_a_minus_b).toBe("number");
+
+      expect(report).toContain("## Cross-Provider Comparisons");
+      expect(report).toContain("Cost Ratio (A/B)");
+      expect(report).toContain("Quality Delta (A-B)");
+      expect(report).toContain("openai-mini (openai, cascade)");
+      expect(report).toContain("anthropic (anthropic, cascade)");
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
