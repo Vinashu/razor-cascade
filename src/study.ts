@@ -56,6 +56,8 @@ const JudgeScoreSchema = z.object({
   score: z.number().min(0).max(10),
 });
 
+const CostCapSchema = z.number().finite().nonnegative();
+
 export type StudyMode = z.infer<typeof StudyModeSchema>;
 export type StudyConfig = z.infer<typeof StudyConfigSchema>;
 
@@ -212,6 +214,15 @@ function average(values: number[]): number {
   }
 
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function parseOptionalCostCap(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  return CostCapSchema.parse(numericValue);
 }
 
 function aggregateIterations(stepRecords: StepRecord[]): IterationAggregate[] {
@@ -880,11 +891,13 @@ export async function runStudy(options: {
   outputDir?: string;
   dryRun?: boolean;
   skipTests?: boolean;
+  costCap?: number;
 }): Promise<{
   outputFolder: string;
   stepRecords: StepRecord[];
   runRecords: RunRecord[];
   summaryRecords: Array<Record<string, unknown>>;
+  costCapReached: boolean;
 }> {
   const selectedConfigs = await resolveSelectedConfigs({
     configName: options.configName,
@@ -897,6 +910,7 @@ export async function runStudy(options: {
   });
   const configFile = await loadConfigFile();
   const runs = options.runs ?? Number(process.env.RAZORCASCADE_DEFAULT_RUNS || configFile.defaultRuns || 10);
+  const costCap = parseOptionalCostCap(options.costCap);
   const outputRoot = resolve(options.outputDir || configFile.outputDir || "experiments");
   const outputFolder = join(outputRoot, timestampFolderName());
   await mkdir(outputFolder, { recursive: true });
@@ -904,7 +918,10 @@ export async function runStudy(options: {
   const cachedTests = await runTestsOnce(Boolean(options.skipTests));
   const stepRecords: StepRecord[] = [];
   const runRecords: RunRecord[] = [];
+  let cumulativeEstimatedCostUsd = 0;
+  let costCapReached = false;
 
+  outer:
   for (const config of selectedConfigs) {
     const clients = options.judgeClient
       ? {
@@ -923,9 +940,18 @@ export async function runStudy(options: {
         options.judgeModel,
       );
     for (let runId = 1; runId <= runs; runId += 1) {
+      if (costCap !== undefined && cumulativeEstimatedCostUsd > costCap) {
+        costCapReached = true;
+        console.warn(
+          `Cost cap of $${costCap.toFixed(4)} already exceeded at $${cumulativeEstimatedCostUsd.toFixed(4)} before ${config.name} run ${runId}; stopping early and writing partial results.`,
+        );
+        break outer;
+      }
+
       const result = await executeRun(config, runId, clients, cachedTests.passed);
       stepRecords.push(...result.steps);
       runRecords.push(result.run);
+      cumulativeEstimatedCostUsd = roundNumber(cumulativeEstimatedCostUsd + result.run.totalCostUsd, 8);
     }
   }
 
@@ -961,6 +987,7 @@ export async function runStudy(options: {
     stepRecords,
     runRecords,
     summaryRecords,
+    costCapReached,
   };
 }
 
@@ -979,12 +1006,14 @@ function buildStudyProgram(): Command {
     .option("--gate-model <model>", "Gate model override.")
     .option("--judge", "Score flagship outputs with an LLM judge instead of the heuristic scorer.", false)
     .option("--judge-model <model>", "Optional judge model override. Defaults to the flagship model.")
+    .option("--cost-cap <usd>", "Stop early once cumulative estimated study cost already exceeds this USD cap.")
     .option("--output-dir <path>", "Root folder for experiment artifacts.")
     .option("--dry-run", "Use deterministic mock clients even if API keys are present.", false)
     .option("--skip-tests", "Skip local tests while running the study.", false)
     .action(async (options) => {
       const provider = options.provider ? ProviderSchema.parse(options.provider) : undefined;
       const mode = options.mode ? StudyModeSchema.parse(options.mode) : undefined;
+      const costCap = parseOptionalCostCap(options.costCap);
       const configNames =
         typeof options.configs === "string"
           ? options.configs.split(",").map((name: string) => name.trim()).filter(Boolean)
@@ -1000,6 +1029,7 @@ function buildStudyProgram(): Command {
         gateModel: options.gateModel,
         judge: options.judge,
         judgeModel: options.judgeModel,
+        costCap,
         outputDir: options.outputDir,
         dryRun: options.dryRun,
         skipTests: options.skipTests,

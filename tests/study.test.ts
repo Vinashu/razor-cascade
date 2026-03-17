@@ -177,4 +177,42 @@ describe("study runner", () => {
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);
+
+  test("stops early when the cumulative estimated cost exceeds the configured cap", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-"));
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+
+    console.warn = (message?: unknown) => {
+      warnings.push(String(message ?? ""));
+    };
+
+    try {
+      const result = await runStudy({
+        configName: "baseline-openai",
+        runs: 3,
+        costCap: 0,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.costCapReached).toBe(true);
+      expect(result.runRecords).toHaveLength(1);
+      expect(result.stepRecords).toHaveLength(10);
+      expect(result.summaryRecords).toHaveLength(1);
+      expect(result.runRecords[0]?.totalCostUsd).toBeGreaterThan(0);
+      expect(warnings.some((warning) => warning.includes("Cost cap of $0.0000 already exceeded"))).toBe(true);
+
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as Array<Record<string, unknown>>;
+      const report = await Bun.file(join(result.outputFolder, "report.md")).text();
+
+      expect(summaryJson).toHaveLength(1);
+      expect(summaryJson[0]?.config).toBe("baseline-openai");
+      expect(report).toContain("Configuration Summary");
+    } finally {
+      console.warn = originalWarn;
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
 });
