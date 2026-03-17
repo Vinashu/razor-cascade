@@ -73,6 +73,7 @@ describe("metrics", () => {
       const dashboardPath = join(outputDir, "dashboard.html");
       await writeHtmlDashboard(
         dashboardPath,
+        "mock",
         [
           {
             label: "baseline-openai",
@@ -116,6 +117,8 @@ describe("metrics", () => {
       );
 
       const html = await Bun.file(dashboardPath).text();
+      expect(html).toContain("Mock Data");
+      expect(html).toContain("illustrative rather than live-provider measurements");
       expect(html).toContain("Zoomed range:");
       expect(html).toContain("No drift detected across compared iterations.");
       expect(html).toContain("No drift observed across compared configurations.");

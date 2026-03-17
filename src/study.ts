@@ -168,6 +168,13 @@ interface StudyClients {
   judge?: ModelClient;
 }
 
+type StudyArtifactDataSource = "mock" | "live";
+
+interface StudySummaryArtifact {
+  dataSource: StudyArtifactDataSource;
+  configs: Array<Record<string, unknown>>;
+}
+
 const STUDY_TASKS: StudyTask[] = [
   {
     number: 1,
@@ -250,6 +257,14 @@ function parseOptionalCostCap(value: unknown): number | undefined {
 
   const numericValue = typeof value === "number" ? value : Number(value);
   return CostCapSchema.parse(numericValue);
+}
+
+function resolveStudyDataSource(runRecords: RunRecord[]): StudyArtifactDataSource {
+  return runRecords.some((run) => run.usedMockClients) ? "mock" : "live";
+}
+
+function formatStudyDataSource(dataSource: StudyArtifactDataSource): string {
+  return dataSource === "mock" ? "mock clients" : "live API calls";
 }
 
 function aggregateIterations(stepRecords: StepRecord[]): IterationAggregate[] {
@@ -981,6 +996,7 @@ export function buildMarkdownSummary(
   summaryRows: Array<Record<string, unknown>>,
   outputFolder: string,
   tests: TestCacheResult,
+  dataSource: StudyArtifactDataSource,
 ): string {
   const formatMetric = (value: unknown, decimals: number): string =>
     typeof value === "number" ? value.toFixed(decimals) : "n/a";
@@ -997,6 +1013,7 @@ export function buildMarkdownSummary(
     `Generated: ${new Date().toISOString()}`,
     `Output folder: ${outputFolder}`,
     `Tests: ${tests.passed === null ? "skipped" : tests.passed ? "passed" : "failed"}`,
+    `Data source: ${formatStudyDataSource(dataSource)}`,
     "",
     "## Configuration Summary",
     "",
@@ -1104,6 +1121,11 @@ export async function runStudy(options: {
   }
 
   const summaryRecords = buildSummaryRecords(runRecords);
+  const dataSource = resolveStudyDataSource(runRecords);
+  const summaryArtifact: StudySummaryArtifact = {
+    dataSource,
+    configs: summaryRecords,
+  };
   const dashboardCurveData = buildDashboardCurveData(stepRecords);
   const dashboardData: DashboardDatum[] = summaryRecords.map((row) => ({
     label: String(row.config),
@@ -1126,9 +1148,12 @@ export async function runStudy(options: {
 
   await writeCsv(join(outputFolder, "steps.csv"), stepRecords as unknown as Array<Record<string, unknown>>);
   await writeCsv(join(outputFolder, "runs.csv"), runRecords as unknown as Array<Record<string, unknown>>);
-  await Bun.write(join(outputFolder, "summary.json"), JSON.stringify(summaryRecords, null, 2));
-  await writeHtmlDashboard(join(outputFolder, "dashboard.html"), dashboardData, dashboardCurveData);
-  await Bun.write(join(outputFolder, "report.md"), buildMarkdownSummary(summaryRecords, outputFolder, cachedTests));
+  await Bun.write(join(outputFolder, "summary.json"), JSON.stringify(summaryArtifact, null, 2));
+  await writeHtmlDashboard(join(outputFolder, "dashboard.html"), dataSource, dashboardData, dashboardCurveData);
+  await Bun.write(
+    join(outputFolder, "report.md"),
+    buildMarkdownSummary(summaryRecords, outputFolder, cachedTests, dataSource),
+  );
 
   return {
     outputFolder,

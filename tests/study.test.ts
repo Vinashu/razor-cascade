@@ -51,6 +51,7 @@ describe("study runner", () => {
       expect(header).toContain("driftScore");
       expect(header).toContain("missingInvariants");
       expect(header).toContain("contradictions");
+      expect(dashboardHtml).toContain("Mock Data");
       expect(dashboardHtml).toContain("Iteration Drift Curve");
     } finally {
       await rm(outputDir, { recursive: true, force: true });
@@ -88,11 +89,16 @@ describe("study runner", () => {
       expect(typeof cascade?.ci95_cost_upper).toBe("number");
       expect(Number(cascade?.ci95_cost_lower)).toBeLessThanOrEqual(Number(cascade?.ci95_cost_upper));
 
-      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as Array<Record<string, unknown>>;
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
+        dataSource?: string;
+        configs?: Array<Record<string, unknown>>;
+      };
       const report = await Bun.file(join(result.outputFolder, "report.md")).text();
-      const serializedCascade = summaryJson.find((row) => row.config === "openai-mini");
+      const serializedCascade = summaryJson.configs?.find((row) => row.config === "openai-mini");
 
+      expect(summaryJson.dataSource).toBe("mock");
       expect(Object.hasOwn(serializedCascade ?? {}, "pValue_cost")).toBe(true);
+      expect(report).toContain("Data source: mock clients");
       expect(report).toContain("Cost p-value");
       expect(report).toContain("Cohen's d (Cost)");
     } finally {
@@ -204,11 +210,16 @@ describe("study runner", () => {
       expect(result.runRecords[0]?.totalCostUsd).toBeGreaterThan(0);
       expect(warnings.some((warning) => warning.includes("Cost cap of $0.0000 already exceeded"))).toBe(true);
 
-      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as Array<Record<string, unknown>>;
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
+        dataSource?: string;
+        configs?: Array<Record<string, unknown>>;
+      };
       const report = await Bun.file(join(result.outputFolder, "report.md")).text();
 
-      expect(summaryJson).toHaveLength(1);
-      expect(summaryJson[0]?.config).toBe("baseline-openai");
+      expect(summaryJson.dataSource).toBe("mock");
+      expect(summaryJson.configs).toHaveLength(1);
+      expect(summaryJson.configs?.[0]?.config).toBe("baseline-openai");
+      expect(report).toContain("Data source: mock clients");
       expect(report).toContain("Configuration Summary");
     } finally {
       console.warn = originalWarn;

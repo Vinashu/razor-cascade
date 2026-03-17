@@ -13,6 +13,8 @@ export interface ModelPricing {
   outputUsdPerMillion: number;
 }
 
+export type ArtifactDataSource = "mock" | "live";
+
 export interface DashboardDatum {
   label: string;
   runs?: number;
@@ -550,6 +552,24 @@ function formatDashboardPercent(value: number | null | undefined): string {
   return typeof value === "number" ? `${value.toFixed(2)}%` : "n/a";
 }
 
+function describeArtifactDataSource(dataSource: ArtifactDataSource): {
+  label: string;
+  detail: string;
+  tone: "stable" | "warning";
+} {
+  return dataSource === "mock"
+    ? {
+      label: "Mock Data",
+      detail: "This dashboard reflects mock-client output, so costs and quality metrics are illustrative rather than live-provider measurements.",
+      tone: "warning",
+    }
+    : {
+      label: "Live API Data",
+      detail: "This dashboard reflects live provider API calls and includes the measured study artifacts from those runs.",
+      tone: "stable",
+    };
+}
+
 function formatCostInterval(item: DashboardDatum): string {
   return typeof item.ci95CostLower === "number" && typeof item.ci95CostUpper === "number"
     ? `$${item.ci95CostLower.toFixed(4)} to $${item.ci95CostUpper.toFixed(4)}`
@@ -899,6 +919,7 @@ function renderDriftPanel(data: DashboardDatum[]): string {
 
 export async function writeHtmlDashboard(
   filePath: string,
+  dataSource: ArtifactDataSource,
   data: DashboardDatum[],
   curveData: DashboardCurveDatum[],
 ): Promise<void> {
@@ -907,6 +928,7 @@ export async function writeHtmlDashboard(
   const maxTokens = Math.max(...data.map((item) => item.meanTokens));
   const costScaleMax = maxCost > 0 ? maxCost : 1;
   const tokenScaleMax = maxTokens > 0 ? maxTokens : 1;
+  const dataSourceBadge = describeArtifactDataSource(dataSource);
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -945,6 +967,38 @@ export async function writeHtmlDashboard(
       main {
         max-width: 1080px;
         margin: 0 auto;
+      }
+
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .hero-copy {
+        flex: 1 1 420px;
+      }
+
+      .hero-copy p {
+        margin: 0;
+      }
+
+      .hero-meta {
+        flex: 0 1 320px;
+        display: grid;
+        gap: 10px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-meta p {
+        margin: 0;
+        font-size: 0.95rem;
       }
 
       h1 {
@@ -1195,8 +1249,16 @@ export async function writeHtmlDashboard(
   </head>
   <body>
     <main>
-      <h1>RazorCascade Dashboard</h1>
-      <p>Mean cost, drift, tokens, and quality by configuration.</p>
+      <header class="hero">
+        <div class="hero-copy">
+          <h1>RazorCascade Dashboard</h1>
+          <p>Mean cost, drift, tokens, and quality by configuration.</p>
+        </div>
+        <div class="hero-meta">
+          <span class="status-pill ${dataSourceBadge.tone}">${escapeHtml(dataSourceBadge.label)}</span>
+          <p>${escapeHtml(dataSourceBadge.detail)}</p>
+        </div>
+      </header>
       <section class="grid">
         ${data
           .map((item) => {

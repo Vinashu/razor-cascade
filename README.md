@@ -163,7 +163,7 @@ bun run study --config openai-mini --runs 1 --snapshot
 
 Helpful flags:
 
-- `--dry-run`: force deterministic mock clients even if API keys exist.
+- `--dry-run`: force deterministic mock clients even if API keys exist. Generated `summary.json`, `report.md`, and `dashboard.html` artifacts are labeled as mock data.
 - `--skip-tests`: skip local test execution during the study run.
 - `--output-dir <path>`: write artifacts to a custom folder.
 - `--cost-cap <usd>`: stop before the next run once cumulative estimated study cost already exceeds this USD amount.
@@ -203,9 +203,9 @@ Each study execution writes a timestamped folder under `experiments/` containing
 
 - `steps.csv`: per-step token, duration, cost, and quality metrics.
 - `runs.csv`: per-run aggregate results.
-- `summary.json`: config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals.
-- `dashboard.html`: simple zero-dependency HTML visualization.
-- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table.
+- `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals.
+- `dashboard.html`: simple zero-dependency HTML visualization with a header badge showing `Mock Data` or `Live API Data`.
+- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table and a header note indicating whether the run used mock clients or live API calls.
 - `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
 
 If a study stops early because of `--cost-cap`, these artifacts still reflect all completed runs up to that point.
