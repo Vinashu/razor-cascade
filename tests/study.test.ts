@@ -3,10 +3,67 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { main, runStudy } from "../src/study.ts";
+import { buildDashboardCurveData, main, runStudy } from "../src/study.ts";
 import type { ModelClient } from "../src/models.ts";
 
 describe("study runner", () => {
+  test("builds dashboard curve data from actual step numbers", () => {
+    const curveData = buildDashboardCurveData([
+      {
+        config: "baseline-openai",
+        runId: 1,
+        step: 1,
+        stepNumber: 1,
+        stepTitle: "CLI skeleton + argument parsing",
+        modelRole: "flagship",
+        provider: "openai",
+        requestedModel: "gpt-5.4",
+        actualMode: "mock",
+        inputTokens: 10,
+        outputTokens: 5,
+        totalTokens: 15,
+        cost: 0.1,
+        estimatedCostUsd: 0.1,
+        invariantCount: 1,
+        missingInvariants: 0,
+        contradictions: 0,
+        driftScore: 0,
+        durationMs: 10,
+        qualityScore: 9,
+        testsPassed: null,
+        success: true,
+      },
+      {
+        config: "baseline-openai",
+        runId: 2,
+        step: 10,
+        stepNumber: 10,
+        stepTitle: "Report export",
+        modelRole: "flagship",
+        provider: "openai",
+        requestedModel: "gpt-5.4",
+        actualMode: "mock",
+        inputTokens: 20,
+        outputTokens: 5,
+        totalTokens: 25,
+        cost: 0.2,
+        estimatedCostUsd: 0.2,
+        invariantCount: 1,
+        missingInvariants: 0,
+        contradictions: 0,
+        driftScore: 0,
+        durationMs: 12,
+        qualityScore: 9,
+        testsPassed: null,
+        success: true,
+      },
+    ]);
+
+    expect(curveData).toHaveLength(2);
+    expect(curveData.map((datum) => datum.stepNumber)).toEqual([1, 10]);
+    expect(curveData.every((datum) => datum.label === "baseline-openai")).toBe(true);
+  });
+
   test("executes baseline aliases and explicit provider baselines in dry-run mode", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-"));
 
@@ -58,6 +115,37 @@ describe("study runner", () => {
     }
   }, 30000);
 
+  test("routes every configured study through --all in dry-run mode", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-all-"));
+
+    try {
+      const result = await runStudy({
+        all: true,
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.runRecords).toHaveLength(9);
+      expect(result.summaryRecords).toHaveLength(9);
+      expect(result.summaryRecords.map((row) => row.config)).toEqual([
+        "baseline-openai",
+        "openai-mini",
+        "openai-nano",
+        "baseline-anthropic",
+        "anthropic",
+        "baseline-grok",
+        "grok",
+        "baseline-gemini",
+        "gemini",
+      ]);
+      expect(result.summaryRecords.every((row) => row.runs === 1)).toBe(true);
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
   test("supports --configs style matched-pair runs in one output folder", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-pair-"));
 
@@ -104,6 +192,30 @@ describe("study runner", () => {
       expect(report).toContain("Cost p-value");
       expect(report).toContain("Cohen's d (Cost)");
       expect(report).not.toContain("## Cross-Provider Comparisons");
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("supports ad hoc cascade mode with an explicit anthropic provider", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-adhoc-"));
+
+    try {
+      const result = await runStudy({
+        mode: "cascade",
+        provider: "anthropic",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.runRecords).toHaveLength(1);
+      expect(result.summaryRecords).toHaveLength(1);
+      expect(result.summaryRecords[0]?.config).toBe("adhoc");
+      expect(result.summaryRecords[0]?.provider).toBe("anthropic");
+      expect(result.summaryRecords[0]?.mode).toBe("cascade");
+      expect(result.runRecords[0]?.usedMockClients).toBe(true);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }

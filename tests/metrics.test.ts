@@ -43,6 +43,18 @@ describe("metrics", () => {
     expect(estimateTokens("token budget")).toBe(3);
   });
 
+  test("escapes csv quotes, commas, and newlines", () => {
+    const csv = toCsv([
+      {
+        config: 'baseline, "openai"',
+        notes: "line 1\nline 2",
+      },
+    ]);
+
+    expect(csv).toContain('"baseline, ""openai"""');
+    expect(csv).toContain('"line 1\nline 2"');
+  });
+
   test("weights punctuation and operators when estimating code-heavy text", () => {
     expect(estimateTokens("if (count <= 10) return count + 1;")).toBe(11);
   });

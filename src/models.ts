@@ -42,6 +42,9 @@ export interface RetryOptions {
   baseDelayMs?: number;
 }
 
+const OPENAI_TEMPERATURE_OMIT_MODELS_ENV = "OPENAI_TEMPERATURE_OMIT_MODELS";
+const DEFAULT_OPENAI_TEMPERATURE_OMIT_MODELS = ["gpt-5.4", "gpt-5-mini", "gpt-5-nano"];
+
 export const DEFAULT_MODELS: Record<ProviderName, Record<ModelRole, string>> = {
   openai: {
     flagship: "gpt-5.4",
@@ -109,6 +112,35 @@ export function resolveModelFromEnv(
 export function detectPreferredProvider(env: NodeJS.ProcessEnv = process.env): ProviderName | null {
   const orderedProviders: ProviderName[] = ["openai", "anthropic", "xai", "gemini"];
   return orderedProviders.find((provider) => Boolean(getProviderApiKey(provider, env))) ?? null;
+}
+
+function parseTemperatureOmitModels(rawValue: string | undefined): string[] {
+  return (rawValue ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function matchesTemperatureOmitModel(model: string, pattern: string): boolean {
+  if (!pattern) {
+    return false;
+  }
+
+  if (pattern.endsWith("*")) {
+    return model.startsWith(pattern.slice(0, -1));
+  }
+
+  return model === pattern;
+}
+
+export function shouldOmitOpenAiTemperature(
+  model: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const configuredPatterns = parseTemperatureOmitModels(env[OPENAI_TEMPERATURE_OMIT_MODELS_ENV]);
+  const patterns = configuredPatterns.length > 0 ? configuredPatterns : DEFAULT_OPENAI_TEMPERATURE_OMIT_MODELS;
+  const normalizedModel = model.trim().toLowerCase();
+  return patterns.some((pattern) => matchesTemperatureOmitModel(normalizedModel, pattern));
 }
 
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503]);
@@ -457,8 +489,7 @@ async function createOpenAiClient(options: CreateModelClientOptions): Promise<Mo
           max_output_tokens: request.maxOutputTokens ?? 1_200,
         };
 
-        // Some newer OpenAI models reject temperature entirely.
-        if (!/^gpt-5/i.test(options.model)) {
+        if (!shouldOmitOpenAiTemperature(options.model)) {
           responsePayload.temperature = request.temperature ?? 0.2;
         }
 

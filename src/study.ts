@@ -1174,7 +1174,9 @@ export function buildDashboardCurveData(stepRecords: StepRecord[]): DashboardCur
 
   return [...grouped.entries()]
     .map(([key, values]) => {
-      const [label, stepNumberText] = key.split("::");
+      const separatorIndex = key.indexOf("::");
+      const label = separatorIndex >= 0 ? key.slice(0, separatorIndex) : key;
+      const stepNumberText = separatorIndex >= 0 ? key.slice(separatorIndex + 2) : "";
       return {
         label,
         stepNumber: Number(stepNumberText),

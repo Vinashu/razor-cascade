@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { TaskForgeService } from "../src/taskforge.ts";
+import { TaskForgeError, TaskForgeService } from "../src/taskforge.ts";
 
 const cleanupPaths: string[] = [];
 
@@ -23,6 +23,18 @@ afterEach(async () => {
 });
 
 describe("TaskForgeService", () => {
+  test("rejects empty task titles and missing task IDs", async () => {
+    const service = await createService();
+
+    await expect(
+      service.addTask({
+        title: "   ",
+      }),
+    ).rejects.toThrow(TaskForgeError);
+    await expect(service.completeTask("task_9999")).rejects.toThrow(TaskForgeError);
+    await expect(service.deleteTask("task_9999")).rejects.toThrow(TaskForgeError);
+  });
+
   test("adds, lists, completes, and deletes tasks", async () => {
     const service = await createService();
 

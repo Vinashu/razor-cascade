@@ -93,6 +93,7 @@ GEMINI_API_KEY=...
 
 OPENAI_FLAGSHIP_MODEL=gpt-5.4
 OPENAI_GATE_MODEL=gpt-5-mini
+OPENAI_TEMPERATURE_OMIT_MODELS=gpt-5.4,gpt-5-mini,gpt-5-nano
 ANTHROPIC_FLAGSHIP_MODEL=claude-4-sonnet
 ANTHROPIC_GATE_MODEL=claude-4-haiku
 XAI_FLAGSHIP_MODEL=grok-4
@@ -162,6 +163,9 @@ bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 
 # Capture per-step prompt/response snapshots for reproducibility
 bun run study --config openai-mini --runs 1 --snapshot
+
+# Quick dry-run for local iteration
+bun run study:dry
 ```
 
 ## Comparing Existing Experiments
@@ -192,6 +196,9 @@ Judge mode sends the task objective plus the flagship response to a short rubric
 
 Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 
+- `bun run test:watch`: run the test suite in watch mode during development.
+- `bun run study:dry`: run a single dry-run study with tests skipped, which is handy for fast local iteration.
+
 Live API runs also include automatic retry with exponential backoff and jitter for transient failures such as rate limits, 5xx responses, and short network interruptions. Non-retryable request errors such as invalid authentication or malformed input are surfaced immediately.
 
 Snapshot mode is off by default to avoid disk bloat. When enabled, each flagship step writes `{config}-run{runId}-step{stepNumber}-flagship.json`; cascade runs also add `-gate.json`, and judge-enabled runs add `-judge.json`.
@@ -202,13 +209,22 @@ The summarizer in [`src/gate.ts`](./src/gate.ts) uses this default system prompt
 
 ```text
 You are a ruthless context compressor for agentic coding workflows.
-Given the full conversation history + latest code/output, output ONLY valid JSON:
+Given the full conversation history + latest code/output, output ONLY valid JSON.
+If the user message includes a "Known invariants that must survive" block, copy those facts into "invariants" and keep them unless the latest changes clearly contradict them.
 {
   "goal": "1-sentence current project goal",
   "decisions": ["key architectural decisions", "..."],
   "risks": ["max 3 open questions or risks"],
-  "snippets": ["only the most relevant code blocks, total <200 tokens"]
+  "snippets": ["only the most relevant code blocks, total <200 tokens"],
+  "invariants": ["stable architectural facts that must survive future gates"]
 }
+Examples:
+Input: history about TaskForge CLI; latest changes add JSON persistence and Bun runtime.
+Output: {"goal":"Build the TaskForge CLI on Bun","decisions":["Use Bun","Persist tasks in JSON"],"risks":["API pricing may drift"],"snippets":["const storagePath = '.taskforge/tasks.json';"],"invariants":["storage file = .taskforge/tasks.json"]}
+
+Input: history about the study runner; latest output adds mock/live data labeling.
+Output: {"goal":"Document the study artifacts and analysis workflow","decisions":["Label mock vs live data in outputs"],"risks":["Docs may drift from implementation"],"snippets":["Data source: mock clients"],"invariants":["summary.json includes dataSource"]}
+
 Max 600 tokens total. Be concise, faithful, and eliminate redundancy.
 ```
 
@@ -244,6 +260,7 @@ The runner reports:
 - Quality via either the default heuristic scorer or optional LLM-as-judge scoring with a 10-point rubric.
 - Drift via missing invariants plus contradiction checks for explicit value changes, semantic storage/path mismatches, rule violations, and enum cardinality drift.
 - Cached local test pass status for the current repository.
+- Edge-case coverage for dry-run `--all`, ad hoc provider modes, TaskForge validation failures, gate JSON fallback, and zero-drift contradiction cases.
 
 ## Publication Tips
 
@@ -259,3 +276,4 @@ The runner reports:
 - When live provider responses include token usage metadata, RazorCascade always uses those actual counts instead of the fallback estimator.
 - The xAI adapter uses the OpenAI-compatible xAI REST API path so the repo stays easy to install and run.
 - The study runner focuses on cost/quality instrumentation and prompt-context management rather than mutating this repository's source files during each simulated run.
+- OpenAI temperature suppression is configurable through `OPENAI_TEMPERATURE_OMIT_MODELS`, so you can update the list without changing source code when model behavior changes.

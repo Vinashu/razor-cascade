@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { withRetry } from "../src/models.ts";
+import { shouldOmitOpenAiTemperature, withRetry } from "../src/models.ts";
 
 describe("withRetry", () => {
   test("retries transient failures and eventually returns the result", async () => {
@@ -43,5 +43,18 @@ describe("withRetry", () => {
     ).rejects.toThrow("Bad request");
 
     expect(attempts).toBe(1);
+  });
+
+  test("uses a configurable OpenAI temperature omission policy", () => {
+    expect(shouldOmitOpenAiTemperature("gpt-5.4")).toBe(true);
+    expect(shouldOmitOpenAiTemperature("gpt-4.1")).toBe(false);
+
+    const env = {
+      OPENAI_TEMPERATURE_OMIT_MODELS: "gpt-4.1, custom-*",
+    } as NodeJS.ProcessEnv;
+
+    expect(shouldOmitOpenAiTemperature("gpt-4.1", env)).toBe(true);
+    expect(shouldOmitOpenAiTemperature("custom-model", env)).toBe(true);
+    expect(shouldOmitOpenAiTemperature("gpt-5.4", env)).toBe(false);
   });
 });

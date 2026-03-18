@@ -15,7 +15,8 @@ export const GateSummarySchema = z.object({
 export type GateSummary = z.infer<typeof GateSummarySchema>;
 
 export const GATE_SYSTEM_PROMPT = `You are a ruthless context compressor for agentic coding workflows.
-Given the full conversation history + latest code/output, output ONLY valid JSON:
+Given the full conversation history + latest code/output, output ONLY valid JSON.
+If the user message includes a "Known invariants that must survive" block, copy those facts into "invariants" and keep them unless the latest changes clearly contradict them.
 {
   "goal": "1-sentence current project goal",
   "decisions": ["key architectural decisions", "..."],
@@ -23,7 +24,13 @@ Given the full conversation history + latest code/output, output ONLY valid JSON
   "snippets": ["only the most relevant code blocks, total <200 tokens"],
   "invariants": ["stable architectural facts that must survive future gates"]
 }
-Preserve prior invariant memory exactly when possible.
+Examples:
+Input: history about TaskForge CLI; latest changes add JSON persistence and Bun runtime.
+Output: {"goal":"Build the TaskForge CLI on Bun","decisions":["Use Bun","Persist tasks in JSON"],"risks":["API pricing may drift"],"snippets":["const storagePath = '.taskforge/tasks.json';"],"invariants":["storage file = .taskforge/tasks.json"]}
+
+Input: history about the study runner; latest output adds mock/live data labeling.
+Output: {"goal":"Document the study artifacts and analysis workflow","decisions":["Label mock vs live data in outputs"],"risks":["Docs may drift from implementation"],"snippets":["Data source: mock clients"],"invariants":["summary.json includes dataSource"]}
+
 Max 600 tokens total. Be concise, faithful, and eliminate redundancy.`;
 
 function truncateWords(text: string, maxWords: number): string {

@@ -463,8 +463,8 @@ function escapeCsvValue(value: unknown): string {
   }
 
   const text = String(value);
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, "\"\"")}"`;
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
   }
 
   return text;
