@@ -161,12 +161,29 @@ bun run study --configs openai-mini,anthropic,gemini --runs 10
 # One-pass run with LLM-as-judge scoring using GPT-5 nano as the judge
 bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 
+# Repeat judge scoring three times to estimate judge consistency
+bun run study --config openai-mini --runs 2 --judge --judge-repeat 3
+
 # Capture per-step prompt/response snapshots for reproducibility
 bun run study --config openai-mini --runs 1 --snapshot
+
+# Show debug logs while the study runs
+bun run study --config openai-mini --runs 1 --verbose
 
 # Quick dry-run for local iteration
 bun run study:dry
 ```
+
+## Config File
+
+`config.json` is now the main control surface for the study. The shipped file includes:
+
+- `priceBook`: provider and model pricing used by cost estimation. If the key is omitted, RazorCascade falls back to the built-in defaults.
+- `tasks`: the standardized task list for the study. Keeping it in config makes the runner reusable for other projects without editing source.
+- `scoring`: heuristic quality weights and thresholds.
+- `humanBaselineScores`: optional per-task calibration scores for correlation against human judgment.
+
+See [`config.json`](./config.json) for the default shape and [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development workflow.
 
 ## Comparing Existing Experiments
 
@@ -190,7 +207,10 @@ Helpful flags:
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 - `--judge`: score each flagship response with an LLM judge instead of the built-in heuristic scorer.
 - `--judge-model <model>`: optionally use a separate judge model; if omitted, the flagship model is reused.
+- `--judge-repeat <number>`: repeat each judge scoring pass up to three times and record judge-score variability plus agreement.
 - `--snapshot`: write per-step JSON snapshots under `snapshots/` with the exact system prompt, user prompt, model response, usage, and duration.
+- `--verbose`: enable debug logging from the study pipeline.
+- `--quiet`: suppress non-error structured logs.
 
 Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls are capped to a small output budget to control extra cost.
 
@@ -234,9 +254,9 @@ Each study execution writes a timestamped folder under `experiments/` containing
 
 - `steps.csv`: per-step token, duration, cost, and quality metrics.
 - `runs.csv`: per-run aggregate results.
-- `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, baseline comparisons, p-values, effect sizes, and confidence intervals. When more than one provider is present, it also includes `cross_provider_comparisons` with pairwise cost ratios, token ratios, and quality deltas across providers.
-- `dashboard.html`: simple zero-dependency HTML visualization with a header badge showing `Mock Data` or `Live API Data`.
-- `report.md`: Markdown summary suitable for publication notes, including the significance-testing table, a cross-provider comparison table when applicable, and a header note indicating whether the run used mock clients or live API calls.
+- `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, corrected p-values, Mann-Whitney alternatives, effect sizes, confidence intervals for cost, tokens, and quality, judge-agreement metrics, and optional human-correlation fields. When more than one provider is present, it also includes `cross_provider_comparisons` with pairwise cost ratios, token ratios, and quality deltas across providers.
+- `dashboard.html`: simple zero-dependency HTML visualization with effect-size and significance interpretations layered onto the statistical panels.
+- `report.md`: Markdown summary suitable for publication notes, including the expanded significance table, auto-generated `Key Findings`, `Methodology Note`, and a cross-provider comparison table when applicable.
 - `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
 
 The `study compare` subcommand is post-hoc analysis only, so it reads these existing artifacts in place and does not create a new experiment folder unless you explicitly point `--output` at a file path.
@@ -248,19 +268,29 @@ If a study stops early because of `--cost-cap`, these artifacts still reflect al
 The runner reports:
 
 - Input, output, and total token counts.
-- Dependency-free fallback token estimates using a weighted word + punctuation/operator heuristic when a provider omits usage metadata.
-- Estimated USD cost using the March 2026 price table.
+- Optional `gpt-tokenizer` BPE counting when available, with a heuristic fallback when it is not.
+- Estimated USD cost using the `priceBook` configured in `config.json`.
 - Mean, median, min, max, and standard deviation by configuration.
 - Cost and token savings versus baseline.
 - Cross-provider pairwise cost ratios, token ratios, and quality deltas when multiple providers are included in the same run.
 - Welch's t-test p-values for cost, token, and quality comparisons when matched baseline samples are available.
-- Cohen's d effect size for cost versus the matched baseline.
-- 95% confidence intervals for per-configuration cost.
+- Bonferroni-corrected p-values when multiple matched comparisons are present.
+- Mann-Whitney U p-values for non-parametric cost and token comparisons.
+- Cohen's d effect sizes for cost, tokens, and quality.
+- 95% confidence intervals for per-configuration cost, tokens, and quality.
 - Average quality score by task and by configuration.
 - Quality via either the default heuristic scorer or optional LLM-as-judge scoring with a 10-point rubric.
+- Judge repeat variability through `judgeScoreStddev` and aggregated `mean_judge_agreement`.
+- Optional correlation between model quality scores and `humanBaselineScores`.
 - Drift via missing invariants plus contradiction checks for explicit value changes, semantic storage/path mismatches, rule violations, and enum cardinality drift.
+- Power-analysis guidance in `report.md` when observed effects suggest more runs would be helpful.
 - Cached local test pass status for the current repository.
 - Edge-case coverage for dry-run `--all`, ad hoc provider modes, TaskForge validation failures, gate JSON fallback, and zero-drift contradiction cases.
+
+## Project Docs
+
+- [`METHODOLOGY.md`](./METHODOLOGY.md): experimental design, statistical choices, validity limits, and reproducibility notes.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): setup, test commands, study commands, provider extension notes, and code-style expectations.
 
 ## Publication Tips
 

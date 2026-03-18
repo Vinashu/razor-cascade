@@ -3,6 +3,7 @@ import { z } from "zod";
 import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import type { ModelClient } from "./models.ts";
 import type { TokenUsage } from "./metrics.ts";
+import logger from "./logger.ts";
 
 export const GateSummarySchema = z.object({
   goal: z.string().min(1),
@@ -222,6 +223,9 @@ export async function summarizeWithGate(options: {
       usage: response.usage,
     };
   } catch {
+    logger.warn("Gate summary parsing failed; falling back to heuristic summary.", {
+      hasPreviousInvariants: previousInvariants.length > 0,
+    });
     const draftSummary = heuristicGateSummary(options.history, options.latestChanges, previousInvariants);
     return {
       summary: finalizeGateSummary(draftSummary, sourceText, previousInvariants),

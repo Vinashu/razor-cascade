@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { buildDashboardCurveData, main, runStudy } from "../src/study.ts";
 import type { ModelClient } from "../src/models.ts";
+
+async function writeConfigFixture(config: Record<string, unknown>): Promise<{ dir: string; path: string }> {
+  const dir = await mkdtemp(join(tmpdir(), "razorcascade-study-config-"));
+  const path = join(dir, "config.json");
+  await Bun.write(path, JSON.stringify(config, null, 2));
+  return { dir, path };
+}
 
 describe("study runner", () => {
   test("builds dashboard curve data from actual step numbers", () => {
@@ -30,6 +37,7 @@ describe("study runner", () => {
         driftScore: 0,
         durationMs: 10,
         qualityScore: 9,
+        judgeScoreStddev: null,
         testsPassed: null,
         success: true,
       },
@@ -54,6 +62,7 @@ describe("study runner", () => {
         driftScore: 0,
         durationMs: 12,
         qualityScore: 9,
+        judgeScoreStddev: null,
         testsPassed: null,
         success: true,
       },
@@ -267,11 +276,61 @@ describe("study runner", () => {
     }
   }, 30000);
 
+  test("omits cross-provider comparisons when only one provider is present", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cross-provider-single-"));
+
+    try {
+      const result = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.crossProviderComparisons).toHaveLength(0);
+
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
+        cross_provider_comparisons?: Array<Record<string, unknown>>;
+      };
+
+      expect(summaryJson.cross_provider_comparisons).toBeUndefined();
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("creates every pairwise cross-provider comparison across four providers", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cross-provider-four-"));
+
+    try {
+      const result = await runStudy({
+        configNames: [
+          "baseline-openai",
+          "baseline-anthropic",
+          "baseline-grok",
+          "baseline-gemini",
+        ],
+        runs: 1,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.crossProviderComparisons).toHaveLength(6);
+
+      const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
+        cross_provider_comparisons?: Array<Record<string, unknown>>;
+      };
+
+      expect(summaryJson.cross_provider_comparisons).toHaveLength(6);
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
   test("supports LLM judge scoring with an optional judge model in dry-run mode", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-"));
-    const originalWarn = console.warn;
-    const warnings: string[] = [];
-    console.warn = (...args: unknown[]) => { warnings.push(String(args[0] ?? "")); originalWarn(...args); };
 
     try {
       const result = await runStudy({
@@ -290,25 +349,15 @@ describe("study runner", () => {
       expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
       expect(result.runRecords[0]?.usedMockClients).toBe(true);
 
-      // No fallback warnings: the mock judge must have returned parseable JSON for every task.
-      expect(warnings.filter((w) => w.includes("falling back to heuristic scoring"))).toHaveLength(0);
-
       const stepsCsv = await Bun.file(join(result.outputFolder, "steps.csv")).text();
       expect(stepsCsv).toContain("qualityScore");
     } finally {
-      console.warn = originalWarn;
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);
 
   test("falls back to heuristic scoring when judge output is empty", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-fallback-"));
-    const originalWarn = console.warn;
-    const warnings: string[] = [];
-
-    console.warn = (message?: unknown) => {
-      warnings.push(String(message ?? ""));
-    };
 
     try {
       const emptyJudge: ModelClient = {
@@ -338,21 +387,14 @@ describe("study runner", () => {
 
       expect(result.runRecords.length).toBe(1);
       expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
-      expect(warnings.some((warning) => warning.includes("falling back to heuristic scoring"))).toBe(true);
+      expect(result.stepRecords[0]?.judgeScoreStddev).toBeNull();
     } finally {
-      console.warn = originalWarn;
       await rm(outputDir, { recursive: true, force: true });
     }
   }, 30000);
 
-  test("stops early when the cumulative estimated cost exceeds the configured cap", async () => {
+  test("stops before any run when the cost cap is exactly zero", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-"));
-    const originalWarn = console.warn;
-    const warnings: string[] = [];
-
-    console.warn = (message?: unknown) => {
-      warnings.push(String(message ?? ""));
-    };
 
     try {
       const result = await runStudy({
@@ -365,11 +407,9 @@ describe("study runner", () => {
       });
 
       expect(result.costCapReached).toBe(true);
-      expect(result.runRecords).toHaveLength(1);
-      expect(result.stepRecords).toHaveLength(10);
-      expect(result.summaryRecords).toHaveLength(1);
-      expect(result.runRecords[0]?.totalCostUsd).toBeGreaterThan(0);
-      expect(warnings.some((warning) => warning.includes("Cost cap of $0.0000 already exceeded"))).toBe(true);
+      expect(result.runRecords).toHaveLength(0);
+      expect(result.stepRecords).toHaveLength(0);
+      expect(result.summaryRecords).toHaveLength(0);
 
       const summaryJson = JSON.parse(await Bun.file(join(result.outputFolder, "summary.json")).text()) as {
         dataSource?: string;
@@ -378,13 +418,388 @@ describe("study runner", () => {
       const report = await Bun.file(join(result.outputFolder, "report.md")).text();
 
       expect(summaryJson.dataSource).toBe("mock");
-      expect(summaryJson.configs).toHaveLength(1);
-      expect(summaryJson.configs?.[0]?.config).toBe("baseline-openai");
+      expect(summaryJson.configs).toHaveLength(0);
+      expect(report).toContain("No cascade configurations were present in this run.");
       expect(report).toContain("Data source: mock clients");
       expect(report).toContain("Configuration Summary");
     } finally {
-      console.warn = originalWarn;
       await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("stops after the first run when a tiny positive cap is exceeded", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-positive-"));
+
+    try {
+      const result = await runStudy({
+        configName: "baseline-openai",
+        runs: 2,
+        costCap: 0.000001,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.costCapReached).toBe(true);
+      expect(result.runRecords).toHaveLength(1);
+      expect(result.stepRecords).toHaveLength(10);
+      expect(result.summaryRecords).toHaveLength(1);
+      expect(result.runRecords[0]?.totalCostUsd).toBeGreaterThan(0);
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("stops mid-study once the next config run would exceed the cap", async () => {
+    const baselineMeasureDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-measure-baseline-"));
+    const miniMeasureDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-measure-mini-"));
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-cost-cap-mid-"));
+
+    try {
+      const baselineMeasure = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir: baselineMeasureDir,
+        dryRun: true,
+        skipTests: true,
+      });
+      const miniMeasure = await runStudy({
+        configName: "openai-mini",
+        runs: 1,
+        outputDir: miniMeasureDir,
+        dryRun: true,
+        skipTests: true,
+      });
+      const baselineCost = Number(baselineMeasure.runRecords[0]?.totalCostUsd ?? 0);
+      const miniCost = Number(miniMeasure.runRecords[0]?.totalCostUsd ?? 0);
+      const cap = baselineCost * 3 + miniCost / 2;
+
+      const result = await runStudy({
+        configNames: ["baseline-openai", "openai-mini"],
+        runs: 3,
+        costCap: cap,
+        outputDir,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(result.costCapReached).toBe(true);
+      expect(result.runRecords).toHaveLength(4);
+      expect(result.runRecords.map((run) => run.config)).toEqual([
+        "baseline-openai",
+        "baseline-openai",
+        "baseline-openai",
+        "openai-mini",
+      ]);
+      expect(result.summaryRecords).toHaveLength(2);
+    } finally {
+      await rm(baselineMeasureDir, { recursive: true, force: true });
+      await rm(miniMeasureDir, { recursive: true, force: true });
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("supports configurable tasks, scoring, human baselines, and richer summary fields", async () => {
+    const baseFixture = await writeConfigFixture({
+      defaultRuns: 1,
+      outputDir: "experiments",
+      configs: [
+        {
+          name: "baseline-openai",
+          description: "Fixture baseline.",
+          mode: "baseline",
+          provider: "openai",
+          flagshipModel: "gpt-5.4",
+        },
+      ],
+      tasks: [
+        {
+          number: 1,
+          title: "Custom storage task",
+          objective: "Discuss JSON persistence and storage layout.",
+          keywords: ["storage", "json", "persistence"],
+        },
+        {
+          number: 2,
+          title: "Custom reporting task",
+          objective: "Discuss markdown and HTML export.",
+          keywords: ["report", "markdown", "html"],
+        },
+      ],
+      humanBaselineScores: [2, 8],
+    });
+    const customFixture = await writeConfigFixture({
+      defaultRuns: 1,
+      outputDir: "experiments",
+      configs: [
+        {
+          name: "baseline-openai",
+          description: "Fixture baseline.",
+          mode: "baseline",
+          provider: "openai",
+          flagshipModel: "gpt-5.4",
+        },
+      ],
+      tasks: [
+        {
+          number: 1,
+          title: "Custom storage task",
+          objective: "Discuss JSON persistence and storage layout.",
+          keywords: ["storage", "json", "persistence"],
+        },
+        {
+          number: 2,
+          title: "Custom reporting task",
+          objective: "Discuss markdown and HTML export.",
+          keywords: ["report", "markdown", "html"],
+        },
+      ],
+      scoring: {
+        baseScore: 8,
+        keywordWeight: 3.5,
+        structureWeight: 1,
+        lengthThreshold: 1,
+        lengthBonus: 0,
+        testBonus: 0,
+      },
+      humanBaselineScores: [2, 8],
+    });
+    const baselineOutputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-config-baseline-"));
+    const customOutputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-config-custom-"));
+
+    try {
+      const baselineResult = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir: baselineOutputDir,
+        configPath: baseFixture.path,
+        dryRun: true,
+        skipTests: true,
+      });
+      const customResult = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir: customOutputDir,
+        configPath: customFixture.path,
+        dryRun: true,
+        skipTests: true,
+      });
+
+      expect(baselineResult.stepRecords).toHaveLength(2);
+      expect(customResult.stepRecords).toHaveLength(2);
+      expect(customResult.summaryRecords[0]?.mean_quality).not.toBe(baselineResult.summaryRecords[0]?.mean_quality);
+      expect(customResult.summaryRecords[0]?.qualityCorrelationWithHuman).not.toBeNull();
+      expect(typeof customResult.summaryRecords[0]?.qualityCorrelationWithHuman).toBe("number");
+      expect(typeof customResult.summaryRecords[0]?.ci95_tokens_lower).toBe("number");
+      expect(typeof customResult.summaryRecords[0]?.ci95_quality_lower).toBe("number");
+      expect(Object.hasOwn(customResult.summaryRecords[0] ?? {}, "pValue_cost_corrected")).toBe(true);
+      expect(Object.hasOwn(customResult.summaryRecords[0] ?? {}, "pValue_cost_mannwhitney")).toBe(true);
+      expect(Object.hasOwn(customResult.summaryRecords[0] ?? {}, "cohensD_tokens")).toBe(true);
+      expect(Object.hasOwn(customResult.summaryRecords[0] ?? {}, "cohensD_quality")).toBe(true);
+      expect(Object.hasOwn(customResult.summaryRecords[0] ?? {}, "mean_judge_agreement")).toBe(true);
+
+      const summaryJson = JSON.parse(await Bun.file(join(customResult.outputFolder, "summary.json")).text()) as {
+        configs?: Array<Record<string, unknown>>;
+      };
+      const report = await Bun.file(join(customResult.outputFolder, "report.md")).text();
+
+      expect(summaryJson.configs?.[0]?.qualityCorrelationWithHuman).not.toBeNull();
+      expect(report).toContain("## Key Findings");
+      expect(report).toContain("## Methodology Note");
+      expect(report).toContain("Cost p adj");
+      expect(report).toContain("Cohen's d (Quality)");
+    } finally {
+      await rm(baseFixture.dir, { recursive: true, force: true });
+      await rm(customFixture.dir, { recursive: true, force: true });
+      await rm(baselineOutputDir, { recursive: true, force: true });
+      await rm(customOutputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("repeats judge scoring and records judge score variability", async () => {
+    const fixture = await writeConfigFixture({
+      defaultRuns: 1,
+      outputDir: "experiments",
+      configs: [
+        {
+          name: "baseline-openai",
+          description: "Fixture baseline.",
+          mode: "baseline",
+          provider: "openai",
+          flagshipModel: "gpt-5.4",
+        },
+      ],
+      tasks: [
+        {
+          number: 1,
+          title: "Judge repeat task",
+          objective: "Produce a compact implementation note.",
+          keywords: ["goal", "validation", "risk"],
+        },
+      ],
+    });
+    const outputDir = await mkdtemp(join(tmpdir(), "razorcascade-study-judge-repeat-"));
+
+    const judgeClient: ModelClient = {
+      provider: "openai",
+      model: "gpt-5-nano",
+      mode: "mock",
+      async generateText(request) {
+        const attempt = Number(request.metadata?.attempt ?? "1");
+        const score = attempt === 1 ? 1 : 9;
+        return {
+          text: JSON.stringify({ score }),
+          usage: {
+            inputTokens: 1,
+            outputTokens: 1,
+          },
+        };
+      },
+    };
+
+    try {
+      const result = await runStudy({
+        configName: "baseline-openai",
+        runs: 1,
+        outputDir,
+        configPath: fixture.path,
+        dryRun: true,
+        skipTests: true,
+        judge: true,
+        judgeClient,
+        judgeRepeat: 2,
+      });
+
+      expect(result.stepRecords).toHaveLength(1);
+      expect(result.stepRecords[0]?.qualityScore).toBe(5);
+      expect(result.stepRecords[0]?.judgeScoreStddev).toBeGreaterThan(1.5);
+      expect(result.summaryRecords[0]?.mean_judge_agreement).not.toBeNull();
+      expect(Number(result.summaryRecords[0]?.mean_judge_agreement)).toBeLessThan(1);
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+      await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("falls back to heuristic scoring when judge output is malformed or unavailable", async () => {
+    const fixture = await writeConfigFixture({
+      defaultRuns: 1,
+      outputDir: "experiments",
+      configs: [
+        {
+          name: "baseline-openai",
+          description: "Fixture baseline.",
+          mode: "baseline",
+          provider: "openai",
+          flagshipModel: "gpt-5.4",
+        },
+      ],
+      tasks: [
+        {
+          number: 1,
+          title: "Judge fallback task",
+          objective: "Provide a succinct implementation update.",
+          keywords: ["goal", "validation", "risk"],
+        },
+      ],
+    });
+    const cases: Array<{
+      name: string;
+      client: ModelClient;
+      expectScore?: number;
+    }> = [
+      {
+        name: "invalid JSON",
+        client: {
+          provider: "openai",
+          model: "gpt-5-nano",
+          mode: "mock",
+          async generateText() {
+            return {
+              text: "not json",
+              usage: { inputTokens: 1, outputTokens: 1 },
+            };
+          },
+        },
+      },
+      {
+        name: "out-of-range JSON",
+        client: {
+          provider: "openai",
+          model: "gpt-5-nano",
+          mode: "mock",
+          async generateText() {
+            return {
+              text: JSON.stringify({ score: 15 }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            };
+          },
+        },
+      },
+      {
+        name: "network error",
+        client: {
+          provider: "openai",
+          model: "gpt-5-nano",
+          mode: "mock",
+          async generateText() {
+            throw new Error("network down");
+          },
+        },
+      },
+      {
+        name: "rubric sub-category sum",
+        client: {
+          provider: "openai",
+          model: "gpt-5-nano",
+          mode: "mock",
+          async generateText() {
+            return {
+              text: JSON.stringify({
+                completeness: 3,
+                correctness: 3,
+                clarity: 2,
+                architecture: 2,
+              }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            };
+          },
+        },
+        expectScore: 10,
+      },
+    ];
+
+    try {
+      for (const testCase of cases) {
+        const outputDir = await mkdtemp(join(tmpdir(), `razorcascade-study-judge-fallback-${testCase.name.replace(/\s+/g, "-")}-`));
+
+        try {
+          const result = await runStudy({
+            configName: "baseline-openai",
+            runs: 1,
+            outputDir,
+            configPath: fixture.path,
+            dryRun: true,
+            skipTests: true,
+            judge: true,
+            judgeClient: testCase.client,
+          });
+
+          expect(result.runRecords).toHaveLength(1);
+          expect(result.stepRecords).toHaveLength(1);
+          if (typeof testCase.expectScore === "number") {
+            expect(result.runRecords[0]?.meanQualityScore).toBe(testCase.expectScore);
+            expect(result.stepRecords[0]?.judgeScoreStddev).toBe(0);
+          } else {
+            expect(result.runRecords[0]?.meanQualityScore).toBeGreaterThan(0);
+            expect(result.stepRecords[0]?.judgeScoreStddev).toBeNull();
+          }
+        } finally {
+          await rm(outputDir, { recursive: true, force: true });
+        }
+      }
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
     }
   }, 30000);
 
@@ -441,6 +856,86 @@ describe("study runner", () => {
       expect(flagshipSnapshot.durationMs).toBeGreaterThanOrEqual(0);
     } finally {
       await rm(outputDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("writes snapshots with special-character config names into nested directories", async () => {
+    const fixture = await writeConfigFixture({
+      defaultRuns: 1,
+      outputDir: "experiments",
+      configs: [
+        {
+          name: "openai mini π",
+          description: "Fixture with a unicode config name.",
+          mode: "baseline",
+          provider: "openai",
+          flagshipModel: "gpt-5.4",
+        },
+      ],
+      tasks: [
+        {
+          number: 1,
+          title: "Snapshot edge task",
+          objective: "Produce a compact implementation note.",
+          keywords: ["goal", "validation", "risk"],
+        },
+      ],
+    });
+    const outputDir = join(
+      await mkdtemp(join(tmpdir(), "razorcascade-study-snapshots-nested-")),
+      "level-1",
+      "level-2",
+    );
+
+    try {
+      const result = await runStudy({
+        configName: "openai mini π",
+        runs: 1,
+        outputDir,
+        configPath: fixture.path,
+        dryRun: true,
+        skipTests: true,
+        judge: true,
+        judgeClient: {
+          provider: "openai",
+          model: "gpt-5-nano",
+          mode: "mock",
+          async generateText() {
+            return {
+              text: JSON.stringify({ score: 7 }),
+              usage: { inputTokens: 1, outputTokens: 1 },
+            };
+          },
+        },
+        snapshot: true,
+      });
+
+      const snapshotDir = join(result.outputFolder, "snapshots");
+      const snapshotFiles = await readdir(snapshotDir);
+
+      expect(snapshotFiles).toHaveLength(2);
+      expect(snapshotFiles).toContain("openai mini π-run1-step1-flagship.json");
+      expect(snapshotFiles).toContain("openai mini π-run1-step1-judge.json");
+
+      const flagshipSnapshot = JSON.parse(
+        await Bun.file(join(snapshotDir, "openai mini π-run1-step1-flagship.json")).text(),
+      ) as {
+        system?: string;
+        prompt?: string;
+        response?: string;
+        usage?: { inputTokens?: number; outputTokens?: number };
+        durationMs?: number;
+      };
+
+      expect(flagshipSnapshot.system).toContain("senior engineer");
+      expect(flagshipSnapshot.prompt).toContain("Execution mode: baseline");
+      expect(flagshipSnapshot.response).toContain("Implementation note");
+      expect(flagshipSnapshot.usage?.inputTokens).toBeGreaterThan(0);
+      expect(flagshipSnapshot.usage?.outputTokens).toBeGreaterThan(0);
+      expect(flagshipSnapshot.durationMs).toBeGreaterThanOrEqual(0);
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+      await rm(dirname(outputDir), { recursive: true, force: true });
     }
   }, 30000);
 

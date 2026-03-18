@@ -1,5 +1,7 @@
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { mkdir, readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+
+import { z } from "zod";
 
 export type ProviderName = "openai" | "anthropic" | "xai" | "gemini";
 
@@ -59,7 +61,27 @@ export interface ConfidenceInterval {
   upper: number;
 }
 
-const PRICE_BOOK: Record<ProviderName, Record<string, ModelPricing>> = {
+type PriceBook = Record<ProviderName, Record<string, ModelPricing>>;
+
+const ModelPricingSchema = z.object({
+  inputUsdPerMillion: z.number().finite().nonnegative(),
+  outputUsdPerMillion: z.number().finite().nonnegative(),
+});
+
+const ProviderPriceBookSchema = z.record(ModelPricingSchema);
+
+const PriceBookSchema = z.object({
+  openai: ProviderPriceBookSchema.optional(),
+  anthropic: ProviderPriceBookSchema.optional(),
+  xai: ProviderPriceBookSchema.optional(),
+  gemini: ProviderPriceBookSchema.optional(),
+}).partial();
+
+const ConfigFileSchema = z.object({
+  priceBook: PriceBookSchema.optional(),
+}).passthrough();
+
+const PRICE_BOOK: PriceBook = {
   openai: {
     "gpt-5.4": { inputUsdPerMillion: 2.5, outputUsdPerMillion: 15 },
     "gpt-5-mini": { inputUsdPerMillion: 0.25, outputUsdPerMillion: 2 },
@@ -80,6 +102,9 @@ const PRICE_BOOK: Record<ProviderName, Record<string, ModelPricing>> = {
     "gemini-2.5-flash": { inputUsdPerMillion: 0.3, outputUsdPerMillion: 2.5 },
   },
 };
+
+// @ts-ignore Optional dependency may be absent in local installs.
+const GPT_TOKENIZER_MODULE = await import("gpt-tokenizer").catch(() => null as null | { encode(text: string): number[] });
 
 const LANCZOS_COEFFICIENTS = [
   676.5203681218851,
@@ -175,6 +200,22 @@ function betaContinuedFraction(x: number, a: number, b: number): number {
   return fraction;
 }
 
+function normalCdf(value: number): number {
+  if (!Number.isFinite(value)) {
+    return value < 0 ? 0 : 1;
+  }
+
+  const sign = value < 0 ? -1 : 1;
+  const absValue = Math.abs(value);
+  const t = 1 / (1 + 0.3275911 * absValue);
+  const polynomial =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
+      Math.exp(-(absValue ** 2));
+
+  return 0.5 * (1 + sign * polynomial);
+}
+
 function regularizedIncompleteBeta(x: number, a: number, b: number): number {
   if (x <= 0) {
     return 0;
@@ -262,6 +303,11 @@ export function estimateTokens(text: string): number {
     return 0;
   }
 
+  const encodedTokens = GPT_TOKENIZER_MODULE?.encode(normalized);
+  if (Array.isArray(encodedTokens) && encodedTokens.length > 0) {
+    return encodedTokens.length;
+  }
+
   const wordCount = (normalized.match(/[A-Za-z0-9_]+/g) ?? []).length;
   const specialCharacterCount = (normalized.match(/[()[\]{}<>.,!?;:'"`~@#$%^&*+=|\\/:-]/g) ?? []).length;
   const estimate = (wordCount * 1.3) + (specialCharacterCount * 0.5);
@@ -277,24 +323,56 @@ export function totalTokens(usage: TokenUsage): number {
   return usage.inputTokens + usage.outputTokens;
 }
 
-export function resolvePricing(provider: ProviderName, model: string): ModelPricing {
-  const catalog = PRICE_BOOK[provider];
-  if (catalog[model]) {
-    return catalog[model];
+function mergePriceBook(overrides?: Partial<PriceBook>): PriceBook {
+  if (!overrides) {
+    return PRICE_BOOK;
+  }
+
+  return {
+    openai: { ...PRICE_BOOK.openai, ...overrides.openai },
+    anthropic: { ...PRICE_BOOK.anthropic, ...overrides.anthropic },
+    xai: { ...PRICE_BOOK.xai, ...overrides.xai },
+    gemini: { ...PRICE_BOOK.gemini, ...overrides.gemini },
+  };
+}
+
+export async function loadPriceBook(configPath = resolve("config.json")): Promise<PriceBook> {
+  try {
+    const raw = await readFile(configPath, "utf8");
+    const parsed = ConfigFileSchema.parse(JSON.parse(raw) as unknown);
+    return mergePriceBook(parsed.priceBook);
+  } catch {
+    return PRICE_BOOK;
+  }
+}
+
+export function resolvePricing(provider: ProviderName, model: string, priceBook: PriceBook = PRICE_BOOK): ModelPricing {
+  const activeCatalog = {
+    ...PRICE_BOOK[provider],
+    ...(priceBook[provider] ?? {}),
+  };
+
+  if (activeCatalog[model]) {
+    return activeCatalog[model];
   }
 
   const normalized = model.toLowerCase();
-  const prefixMatch = Object.entries(catalog).find(([known]) => normalized.startsWith(known.toLowerCase()));
+  const prefixMatch = Object.entries(activeCatalog).find(([known]) => normalized.startsWith(known.toLowerCase()));
   if (prefixMatch) {
     return prefixMatch[1];
   }
 
-  const values = Object.values(catalog);
-  return values[0];
+  const values = Object.values(activeCatalog);
+  return values[0] ?? PRICE_BOOK[provider][Object.keys(PRICE_BOOK[provider])[0]];
 }
 
-export function estimateCostUsd(provider: ProviderName, model: string, usage: TokenUsage): number {
-  const pricing = resolvePricing(provider, model);
+export function estimateCostUsd(
+  provider: ProviderName,
+  model: string,
+  usage: TokenUsage,
+  priceBook?: PriceBook,
+): number {
+  const pricing = resolvePricing(provider, model, priceBook);
   const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputUsdPerMillion;
   const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMillion;
   return roundNumber(inputCost + outputCost, 8);
@@ -325,7 +403,7 @@ export function standardDeviation(values: number[]): number {
   }
 
   const avg = mean(values);
-  const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
@@ -350,6 +428,33 @@ export function summarizeNumbers(values: number[]): NumericSummary {
     max: roundNumber(Math.max(...values), 4),
     stddev: roundNumber(standardDeviation(values), 4),
   };
+}
+
+export function pearsonCorrelation(xs: number[], ys: number[]): number {
+  if (xs.length !== ys.length || xs.length <= 1) {
+    return 0;
+  }
+
+  const meanX = mean(xs);
+  const meanY = mean(ys);
+  let numerator = 0;
+  let sumSquaresX = 0;
+  let sumSquaresY = 0;
+
+  for (let index = 0; index < xs.length; index += 1) {
+    const dx = xs[index] - meanX;
+    const dy = ys[index] - meanY;
+    numerator += dx * dy;
+    sumSquaresX += dx ** 2;
+    sumSquaresY += dy ** 2;
+  }
+
+  const denominator = Math.sqrt(sumSquaresX * sumSquaresY);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return numerator / denominator;
 }
 
 export function percentSavings(baseline: number, candidate: number): number | null {
@@ -457,6 +562,201 @@ export function confidenceInterval(values: number[], confidence = 0.95): Confide
   };
 }
 
+function inverseNormalCdf(probability: number): number {
+  if (probability <= 0 || probability >= 1) {
+    throw new RangeError("Probability must be between 0 and 1.");
+  }
+
+  const a = [
+    -39.69683028665376,
+    220.9460984245205,
+    -275.9285104469687,
+    138.357751867269,
+    -30.66479806614716,
+    2.506628277459239,
+  ];
+  const b = [
+    -54.47609879822406,
+    161.5858368580409,
+    -155.6989798598866,
+    66.80131188771972,
+    -13.28068155288572,
+  ];
+  const c = [
+    -0.007784894002430293,
+    -0.3223964580411365,
+    -2.400758277161838,
+    -2.549732539343734,
+    4.374664141464968,
+    2.938163982698783,
+  ];
+  const d = [
+    0.007784695709041462,
+    0.3224671290700398,
+    2.445134137142996,
+    3.754408661907416,
+  ];
+  const plow = 0.02425;
+  const phigh = 1 - plow;
+
+  if (probability < plow) {
+    const q = Math.sqrt(-2 * Math.log(probability));
+    return (
+      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    );
+  }
+
+  if (probability > phigh) {
+    const q = Math.sqrt(-2 * Math.log(1 - probability));
+    return -(
+      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    );
+  }
+
+  const q = probability - 0.5;
+  const r = q * q;
+  return (
+    (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+  );
+}
+
+export function minimumSampleSize(effectSize: number, power = 0.8, alpha = 0.05): number {
+  if (effectSize <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (power <= 0 || power >= 1) {
+    throw new RangeError("Power must be between 0 and 1.");
+  }
+
+  if (alpha <= 0 || alpha >= 1) {
+    throw new RangeError("Alpha must be between 0 and 1.");
+  }
+
+  const zAlphaOverTwo = inverseNormalCdf(1 - alpha / 2);
+  const zBeta = inverseNormalCdf(power);
+  return Math.ceil(2 * ((zAlphaOverTwo + zBeta) / effectSize) ** 2);
+}
+
+export function bonferroniCorrect(pValues: number[]): number[] {
+  if (pValues.length === 0) {
+    return [];
+  }
+
+  const comparisonCount = pValues.length;
+  return pValues.map((pValue) => Math.min(1, Math.max(0, pValue * comparisonCount)));
+}
+
+function erf(value: number): number {
+  const sign = value < 0 ? -1 : 1;
+  const absValue = Math.abs(value);
+  const t = 1 / (1 + 0.3275911 * absValue);
+  const polynomial =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
+      Math.exp(-(absValue ** 2));
+
+  return sign * polynomial;
+}
+
+function rankTieCorrection(values: number[]): number {
+  if (values.length <= 1) {
+    return 1;
+  }
+
+  const sorted = [...values].sort((left, right) => left - right);
+  let tieSum = 0;
+  let runLength = 1;
+
+  for (let index = 1; index < sorted.length; index += 1) {
+    if (sorted[index] === sorted[index - 1]) {
+      runLength += 1;
+      continue;
+    }
+
+    if (runLength > 1) {
+      tieSum += (runLength ** 3) - runLength;
+    }
+    runLength = 1;
+  }
+
+  if (runLength > 1) {
+    tieSum += (runLength ** 3) - runLength;
+  }
+
+  const total = values.length ** 3 - values.length;
+  return total <= 0 ? 1 : 1 - (tieSum / total);
+}
+
+export function mannWhitneyU(samplesA: number[], samplesB: number[]): { uStatistic: number; pValue: number } {
+  if (samplesA.length === 0 || samplesB.length === 0) {
+    return {
+      uStatistic: 0,
+      pValue: 1,
+    };
+  }
+
+  let winsA = 0;
+  let ties = 0;
+  for (const valueA of samplesA) {
+    for (const valueB of samplesB) {
+      if (valueA > valueB) {
+        winsA += 1;
+      } else if (valueA === valueB) {
+        ties += 1;
+      }
+    }
+  }
+
+  const uStatistic = winsA + (ties / 2);
+  const sampleSizeA = samplesA.length;
+  const sampleSizeB = samplesB.length;
+  const totalPairs = sampleSizeA * sampleSizeB;
+  const meanU = totalPairs / 2;
+  const tieCorrection = rankTieCorrection([...samplesA, ...samplesB]);
+  const varianceU = (totalPairs * (sampleSizeA + sampleSizeB + 1) * tieCorrection) / 12;
+
+  if (varianceU <= 0) {
+    return {
+      uStatistic,
+      pValue: 1,
+    };
+  }
+
+  const smallerU = Math.min(uStatistic, totalPairs - uStatistic);
+  const continuityCorrectedZ = (smallerU - meanU + 0.5) / Math.sqrt(varianceU);
+  const pValue = 2 * (1 - normalCdf(Math.abs(continuityCorrectedZ)));
+
+  return {
+    uStatistic,
+    pValue: Math.min(1, Math.max(0, pValue)),
+  };
+}
+
+export function interpretCohensD(value: number): string {
+  const magnitude = Math.abs(value);
+  if (magnitude < 0.2) {
+    return "negligible";
+  }
+
+  if (magnitude < 0.5) {
+    return "small";
+  }
+
+  if (magnitude < 0.8) {
+    return "medium";
+  }
+
+  return "large";
+}
+
+export function interpretPValue(value: number, alpha = 0.05): string {
+  return value <= alpha ? "significant" : "not significant";
+}
+
 function escapeCsvValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "";
@@ -560,6 +860,14 @@ function formatDashboardPercent(value: number | null | undefined): string {
   return typeof value === "number" ? `${value.toFixed(2)}%` : "n/a";
 }
 
+function formatAnnotatedPValue(value: number | null | undefined): string {
+  return typeof value === "number" ? `${value.toFixed(6)} (${interpretPValue(value)})` : "n/a";
+}
+
+function formatAnnotatedEffectSize(value: number | null | undefined): string {
+  return typeof value === "number" ? `${value.toFixed(4)} (${interpretCohensD(value)})` : "n/a";
+}
+
 function describeArtifactDataSource(dataSource: ArtifactDataSource): {
   label: string;
   detail: string;
@@ -584,10 +892,12 @@ function formatCostInterval(item: DashboardDatum): string {
     : "n/a";
 }
 
+type SignalTone = "stable" | "warning" | "good" | "caution" | "bad";
+
 function describeStatisticalSignal(item: DashboardDatum): {
   title: string;
   detail: string;
-  tone: "stable" | "warning";
+  tone: SignalTone;
 } {
   if (typeof item.costSavingsVsBaselinePct !== "number" || item.costSavingsVsBaselinePct === 0) {
     return {
@@ -606,18 +916,30 @@ function describeStatisticalSignal(item: DashboardDatum): {
   }
 
   if (typeof item.pValueCost === "number") {
-    if (item.pValueCost < 0.05) {
+    const pInterpretation = interpretPValue(item.pValueCost);
+    const effectSizeInterpretation =
+      typeof item.cohensDCost === "number" ? interpretCohensD(item.cohensDCost) : null;
+
+    if (pInterpretation === "significant" && effectSizeInterpretation === "large") {
+      return {
+        title: "Cost difference is statistically significant with a large effect",
+        detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)} (${pInterpretation}); Cohen's d is ${formatAnnotatedEffectSize(item.cohensDCost)}.`,
+        tone: "good",
+      };
+    }
+
+    if (pInterpretation === "significant") {
       return {
         title: "Cost difference is statistically significant",
-        detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)}.`,
-        tone: "stable",
+        detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)} (${pInterpretation}); Cohen's d is ${formatAnnotatedEffectSize(item.cohensDCost)}.`,
+        tone: "caution",
       };
     }
 
     return {
       title: "Cost difference is not statistically significant",
-      detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)}.`,
-      tone: "warning",
+      detail: `Two-tailed Welch's t-test p = ${item.pValueCost.toFixed(4)} (${pInterpretation}); Cohen's d is ${formatAnnotatedEffectSize(item.cohensDCost)}.`,
+      tone: "bad",
     };
   }
 
@@ -1187,7 +1509,18 @@ export async function writeHtmlDashboard(
         color: #1f6f66;
       }
 
-      .status-pill.warning {
+      .status-pill.good {
+        background: rgba(42, 157, 143, 0.14);
+        color: #1f6f66;
+      }
+
+      .status-pill.caution {
+        background: rgba(244, 162, 89, 0.18);
+        color: #9a5b00;
+      }
+
+      .status-pill.warning,
+      .status-pill.bad {
         background: rgba(212, 106, 106, 0.15);
         color: #8f2d56;
       }
@@ -1287,7 +1620,7 @@ export async function writeHtmlDashboard(
       </section>
       <section class="card" style="margin-top: 22px;">
         <h2>Statistical Analysis</h2>
-        <p>Matched baseline comparisons use Welch's t-test for unequal variances, Cohen's d for cost effect size, and 95% confidence intervals around mean cost.</p>
+        <p>Matched baseline comparisons use Welch's t-test for unequal variances, Cohen's d for cost effect size, 95% confidence intervals around mean cost, and interpretation labels for significance and effect size.</p>
         <div class="stat-grid">
           ${data
             .map((item) => {
@@ -1303,10 +1636,10 @@ export async function writeHtmlDashboard(
             <div class="stat-list">
               <span><span>Repeated runs</span><strong>${item.runs ?? "n/a"}</strong></span>
               <span><span>95% cost CI</span><strong>${escapeHtml(formatCostInterval(item))}</strong></span>
-              <span><span>Cost p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueCost, 6))}</strong></span>
-              <span><span>Token p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueTokens, 6))}</strong></span>
-              <span><span>Quality p-value</span><strong>${escapeHtml(formatDashboardNumber(item.pValueQuality, 6))}</strong></span>
-              <span><span>Cohen's d (cost)</span><strong>${escapeHtml(formatDashboardNumber(item.cohensDCost, 4))}</strong></span>
+              <span><span>Cost p-value</span><strong>${escapeHtml(formatAnnotatedPValue(item.pValueCost))}</strong></span>
+              <span><span>Token p-value</span><strong>${escapeHtml(formatAnnotatedPValue(item.pValueTokens))}</strong></span>
+              <span><span>Quality p-value</span><strong>${escapeHtml(formatAnnotatedPValue(item.pValueQuality))}</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>${escapeHtml(formatAnnotatedEffectSize(item.cohensDCost))}</strong></span>
             </div>
           </article>`;
             })
@@ -1393,8 +1726,8 @@ export async function writeHtmlDashboard(
               <td>${escapeHtml(formatCostInterval(item))}</td>
               <td>${escapeHtml(formatDashboardPercent(item.costSavingsVsBaselinePct))}</td>
               <td>${escapeHtml(formatDashboardPercent(item.tokenSavingsVsBaselinePct))}</td>
-              <td>${escapeHtml(formatDashboardNumber(item.pValueCost, 6))}</td>
-              <td>${escapeHtml(formatDashboardNumber(item.cohensDCost, 4))}</td>
+              <td>${escapeHtml(formatAnnotatedPValue(item.pValueCost))}</td>
+              <td>${escapeHtml(formatAnnotatedEffectSize(item.cohensDCost))}</td>
             </tr>`,
               )
               .join("")}

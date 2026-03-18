@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDriftReport, detectContradictions } from "../src/contradictions.ts";
+import {
+  buildDriftReport,
+  detectContradictions,
+  detectReformulationContradictions,
+} from "../src/contradictions.ts";
 
 describe("contradictions", () => {
   test("flags enum contradictions in summaries", () => {
@@ -24,6 +28,33 @@ describe("contradictions", () => {
   test("flags enum cardinality drift when the summary claims too many values", () => {
     const contradictions = detectContradictions(
       "Summary: priority has four values: low, medium, and high.",
+      ["priority enum = low|medium|high"],
+    );
+
+    expect(contradictions).toContain("priority enum contradiction");
+  });
+
+  test("flags reformulated storage path mismatches in a different sentence", () => {
+    const contradictions = detectReformulationContradictions(
+      "The task data is persisted in data/store.sqlite for faster access.",
+      ["storage file = .taskforge/tasks.json"],
+    );
+
+    expect(contradictions).toContain("storage file contradiction");
+  });
+
+  test("does not flag reformulation when the invariant path is preserved", () => {
+    const contradictions = detectReformulationContradictions(
+      "Task data is persisted in .taskforge/tasks.json and reloaded at startup.",
+      ["storage file = .taskforge/tasks.json"],
+    );
+
+    expect(contradictions).toHaveLength(0);
+  });
+
+  test("flags explicit unknown enum additions", () => {
+    const contradictions = detectContradictions(
+      "Summary: priority supports low, medium, high, and urgent.",
       ["priority enum = low|medium|high"],
     );
 

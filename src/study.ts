@@ -9,13 +9,21 @@ import { buildDriftReport } from "./contradictions.ts";
 import { formatGateSummary, summarizeWithGate } from "./gate.ts";
 import { extractInvariants, mergeInvariantFacts } from "./invariants.ts";
 import {
+  bonferroniCorrect,
   cohensD,
   confidenceInterval,
   type DashboardCurveDatum,
   estimateCostUsd,
+  interpretCohensD,
+  interpretPValue,
+  loadPriceBook,
+  mannWhitneyU,
+  minimumSampleSize,
+  pearsonCorrelation,
   percentSavings,
   renderTextBarChart,
   roundNumber,
+  standardDeviation,
   summarizeNumbers,
   totalTokens,
   type TokenUsage,
@@ -31,6 +39,7 @@ import {
   type ModelClient,
   type ProviderName,
 } from "./models.ts";
+import logger from "./logger.ts";
 
 loadDotEnv();
 
@@ -46,10 +55,29 @@ const StudyConfigSchema = z.object({
   gateModel: z.string().optional(),
 });
 
+const StudyTaskSchema = z.object({
+  number: z.number().int().positive(),
+  title: z.string().min(1),
+  objective: z.string().min(1),
+  keywords: z.array(z.string().min(1)),
+});
+
+const ScoringConfigSchema = z.object({
+  baseScore: z.number().default(6),
+  keywordWeight: z.number().default(2.8),
+  structureWeight: z.number().default(0.5),
+  lengthThreshold: z.number().int().positive().default(240),
+  lengthBonus: z.number().default(0.3),
+  testBonus: z.number().default(0.4),
+});
+
 const StudyConfigFileSchema = z.object({
   defaultRuns: z.number().int().positive().default(10),
   outputDir: z.string().default("experiments"),
   configs: z.array(StudyConfigSchema),
+  tasks: z.array(StudyTaskSchema).optional(),
+  scoring: ScoringConfigSchema.optional(),
+  humanBaselineScores: z.array(z.number().finite()).optional(),
 });
 
 const JudgeScoreSchema = z.object({
@@ -60,13 +88,10 @@ const CostCapSchema = z.number().finite().nonnegative();
 
 export type StudyMode = z.infer<typeof StudyModeSchema>;
 export type StudyConfig = z.infer<typeof StudyConfigSchema>;
+export type StudyTask = z.infer<typeof StudyTaskSchema>;
+export type ScoringConfig = z.infer<typeof ScoringConfigSchema>;
 
-export interface StudyTask {
-  number: number;
-  title: string;
-  objective: string;
-  keywords: string[];
-}
+const DEFAULT_SCORING: ScoringConfig = ScoringConfigSchema.parse({});
 
 export interface StepRecord {
   config: string;
@@ -89,6 +114,7 @@ export interface StepRecord {
   driftScore: number;
   durationMs: number;
   qualityScore: number;
+  judgeScoreStddev: number | null;
   testsPassed: boolean | null;
   success: boolean;
 }
@@ -144,6 +170,7 @@ interface StepSnapshotRecord {
   runId: number;
   stepNumber: number;
   role: "flagship" | "gate" | "judge";
+  attempt?: number;
   payload: SnapshotPayload;
 }
 
@@ -195,9 +222,22 @@ export interface SummaryRecord {
   pValue_cost: number | null;
   pValue_tokens: number | null;
   pValue_quality: number | null;
+  pValue_cost_corrected: number | null;
+  pValue_tokens_corrected: number | null;
+  pValue_quality_corrected: number | null;
+  pValue_cost_mannwhitney: number | null;
+  pValue_tokens_mannwhitney: number | null;
   cohensD_cost: number | null;
+  cohensD_tokens: number | null;
+  cohensD_quality: number | null;
   ci95_cost_lower: number;
   ci95_cost_upper: number;
+  ci95_tokens_lower: number;
+  ci95_tokens_upper: number;
+  ci95_quality_lower: number;
+  ci95_quality_upper: number;
+  mean_judge_agreement: number | null;
+  qualityCorrelationWithHuman: number | null;
 }
 
 export interface CrossProviderComparisonRecord {
@@ -243,9 +283,22 @@ const SummaryRecordSchema: z.ZodType<SummaryRecord> = z.object({
   pValue_cost: z.number().nullable(),
   pValue_tokens: z.number().nullable(),
   pValue_quality: z.number().nullable(),
+  pValue_cost_corrected: z.number().nullable(),
+  pValue_tokens_corrected: z.number().nullable(),
+  pValue_quality_corrected: z.number().nullable(),
+  pValue_cost_mannwhitney: z.number().nullable(),
+  pValue_tokens_mannwhitney: z.number().nullable(),
   cohensD_cost: z.number().nullable(),
+  cohensD_tokens: z.number().nullable(),
+  cohensD_quality: z.number().nullable(),
   ci95_cost_lower: z.number(),
   ci95_cost_upper: z.number(),
+  ci95_tokens_lower: z.number(),
+  ci95_tokens_upper: z.number(),
+  ci95_quality_lower: z.number(),
+  ci95_quality_upper: z.number(),
+  mean_judge_agreement: z.number().nullable(),
+  qualityCorrelationWithHuman: z.number().nullable(),
 });
 
 const CrossProviderComparisonRecordSchema: z.ZodType<CrossProviderComparisonRecord> = z.object({
@@ -467,14 +520,24 @@ Produce a concise engineering update that includes:
 4. Risks`;
 }
 
-function scoreTaskOutput(task: StudyTask, text: string, testsPassed: boolean | null): number {
+function scoreTaskOutput(
+  task: StudyTask,
+  text: string,
+  testsPassed: boolean | null,
+  scoring: ScoringConfig = DEFAULT_SCORING,
+): number {
   const normalized = text.toLowerCase();
   const keywordHits = task.keywords.filter((keyword) => normalized.includes(keyword.toLowerCase())).length;
   const keywordScore = task.keywords.length > 0 ? keywordHits / task.keywords.length : 0;
   const structureBonus = ["goal", "validation", "risk"].filter((keyword) => normalized.includes(keyword)).length / 3;
-  const testBonus = testsPassed === true ? 0.4 : testsPassed === false ? -0.4 : 0;
-  const lengthBonus = text.length >= 240 ? 0.3 : 0;
-  const raw = 6 + keywordScore * 2.8 + structureBonus * 0.5 + lengthBonus + testBonus;
+  const testBonus = testsPassed === true ? scoring.testBonus : testsPassed === false ? -scoring.testBonus : 0;
+  const lengthBonus = text.length >= scoring.lengthThreshold ? scoring.lengthBonus : 0;
+  const raw =
+    scoring.baseScore +
+    keywordScore * scoring.keywordWeight +
+    structureBonus * scoring.structureWeight +
+    lengthBonus +
+    testBonus;
   return Math.max(0, Math.min(10, Math.round(raw * 10) / 10));
 }
 
@@ -580,6 +643,8 @@ async function runJudgeScoringStep(
   client: ModelClient,
   task: StudyTask,
   responseText: string,
+  attemptNumber: number,
+  totalAttempts: number,
 ): Promise<{ score: number; trace: SnapshotPayload }> {
   const rubricPrompt = `Evaluate the candidate engineering update for this study task.
 
@@ -595,6 +660,8 @@ Rubric (use these for your internal reasoning only - do NOT include sub-scores i
 Candidate response:
 ${responseText}
 
+Repeat evaluation pass ${attemptNumber} of ${totalAttempts}. Keep the score consistent with the rubric.
+
 Respond with ONLY a valid JSON object where "score" is the integer sum of the four rubric dimensions above (0-10):
 {"score": <integer>}`;
   const system = "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.";
@@ -602,10 +669,12 @@ Respond with ONLY a valid JSON object where "score" is the integer sum of the fo
   const response = await client.generateText({
     system,
     prompt: rubricPrompt,
+    temperature: 0.05 + Math.min(0.4, attemptNumber * 0.05),
     maxOutputTokens: 100,
     metadata: {
       kind: "judge",
       task: String(task.number),
+      attempt: String(attemptNumber),
     },
   });
   const trace: SnapshotPayload = {
@@ -631,30 +700,64 @@ async function scoreTaskOutputWithOptionalJudge(
   task: StudyTask,
   text: string,
   testsPassed: boolean | null,
+  scoring: ScoringConfig,
+  judgeRepeat: number,
   judgeClient?: ModelClient,
-): Promise<{ score: number; trace?: SnapshotPayload }> {
+): Promise<{ score: number; traces: SnapshotPayload[]; judgeScoreStddev: number | null }> {
   if (!judgeClient) {
     return {
-      score: scoreTaskOutput(task, text, testsPassed),
+      score: scoreTaskOutput(task, text, testsPassed, scoring),
+      traces: [],
+      judgeScoreStddev: null,
     };
   }
 
-  try {
-    const result = await runJudgeScoringStep(judgeClient, task, text);
-    return {
-      score: result.score,
-      trace: result.trace,
-    };
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.warn(
-      `Judge scoring failed for task ${task.number} (${task.title}); falling back to heuristic scoring. Reason: ${reason}`,
-    );
-    return {
-      score: scoreTaskOutput(task, text, testsPassed),
-      trace: error instanceof JudgeScoringError ? error.trace : undefined,
-    };
+  const repeatCount = Math.max(1, Math.min(3, Math.trunc(judgeRepeat) || 1));
+  const scores: number[] = [];
+  const traces: SnapshotPayload[] = [];
+  let hadFallback = false;
+
+  for (let attempt = 1; attempt <= repeatCount; attempt += 1) {
+    try {
+      const result = await runJudgeScoringStep(judgeClient, task, text, attempt, repeatCount);
+      scores.push(result.score);
+      traces.push(result.trace);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `Judge scoring failed for task ${task.number} (${task.title}) on repeat ${attempt}/${repeatCount}; falling back to heuristic scoring for that repeat.`,
+        { reason },
+      );
+      scores.push(scoreTaskOutput(task, text, testsPassed, scoring));
+      hadFallback = true;
+      if (error instanceof JudgeScoringError) {
+        traces.push(error.trace);
+      }
+    }
   }
+
+  const meanScore = roundNumber(average(scores), 2);
+  const judgeScoreStddev = hadFallback && repeatCount === 1
+    ? null
+    : repeatCount > 1
+      ? roundNumber(standardDeviation(scores), 4)
+      : 0;
+
+  if (judgeScoreStddev !== null && judgeScoreStddev > 1.5) {
+    logger.warn(
+      `Judge scoring was inconsistent for task ${task.number} (${task.title}).`,
+      {
+        judgeScoreStddev: judgeScoreStddev.toFixed(4),
+        judgeRepeat: repeatCount,
+      },
+    );
+  }
+
+  return {
+    score: meanScore,
+    traces,
+    judgeScoreStddev,
+  };
 }
 
 async function runSingleModelStep(
@@ -712,16 +815,18 @@ async function loadConfigFile(configPath = resolve("config.json")): Promise<z.in
   return StudyConfigFileSchema.parse(JSON.parse(raw) as unknown);
 }
 
-async function resolveSelectedConfigs(options: {
-  configName?: string;
-  configNames?: string[];
-  all?: boolean;
-  mode?: StudyMode;
-  provider?: ProviderName;
-  flagModel?: string;
-  gateModel?: string;
-}): Promise<StudyConfig[]> {
-  const configFile = await loadConfigFile();
+async function resolveSelectedConfigs(
+  configFile: z.infer<typeof StudyConfigFileSchema>,
+  options: {
+    configName?: string;
+    configNames?: string[];
+    all?: boolean;
+    mode?: StudyMode;
+    provider?: ProviderName;
+    flagModel?: string;
+    gateModel?: string;
+  },
+): Promise<StudyConfig[]> {
   const configAliases: Record<string, string> = {
     baseline: "baseline-openai",
     openai: "openai-mini",
@@ -815,6 +920,10 @@ async function executeRun(
   runId: number,
   clients: StudyClients,
   testsPassed: boolean | null,
+  tasks: StudyTask[],
+  scoring: ScoringConfig,
+  judgeRepeat: number,
+  priceBook: Awaited<ReturnType<typeof loadPriceBook>>,
 ): Promise<{ steps: StepRecord[]; run: RunRecord; snapshots: StepSnapshotRecord[] }> {
   const fullHistory: string[] = [];
   let cascadedContext = "";
@@ -822,7 +931,7 @@ async function executeRun(
   const stepRecords: StepRecord[] = [];
   const snapshots: StepSnapshotRecord[] = [];
 
-  for (const task of STUDY_TASKS) {
+  for (const task of tasks) {
     const context = config.mode === "baseline" ? fullHistory.join("\n\n") : cascadedContext;
     const prompt = buildTaskPrompt(task, config.mode, context);
     const flagshipResult = await runSingleModelStep(clients.flagship, prompt, task);
@@ -830,11 +939,13 @@ async function executeRun(
       inputTokens: flagshipResult.usage.inputTokens,
       outputTokens: flagshipResult.usage.outputTokens,
     };
-    const flagshipCost = estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage);
+    const flagshipCost = estimateCostUsd(config.provider, config.flagshipModel, flagshipUsage, priceBook);
     const qualityResult = await scoreTaskOutputWithOptionalJudge(
       task,
       flagshipResult.response,
       testsPassed,
+      scoring,
+      judgeRepeat,
       clients.judge,
     );
     const qualityScore = qualityResult.score;
@@ -860,6 +971,7 @@ async function executeRun(
       driftScore: 0,
       durationMs: flagshipResult.durationMs,
       qualityScore,
+      judgeScoreStddev: qualityResult.judgeScoreStddev,
       testsPassed,
       success: qualityScore >= 7 && testsPassed !== false,
     });
@@ -876,13 +988,14 @@ async function executeRun(
         durationMs: flagshipResult.durationMs,
       },
     });
-    if (qualityResult.trace) {
+    for (const [index, trace] of qualityResult.traces.entries()) {
       snapshots.push({
         config: config.name,
         runId,
         stepNumber: task.number,
         role: "judge",
-        payload: qualityResult.trace,
+        attempt: index + 1,
+        payload: trace,
       });
     }
 
@@ -905,7 +1018,7 @@ async function executeRun(
       const gateDurationMs = Math.round(performance.now() - gateStartedAt);
       const gateUsage = gateResult.usage;
       const driftReport = buildDriftReport(formatGateSummary(gateResult.draftSummary), invariantMemory);
-      const gateCost = estimateCostUsd(config.provider, config.gateModel, gateUsage);
+      const gateCost = estimateCostUsd(config.provider, config.gateModel, gateUsage, priceBook);
 
       stepRecords.push({
         config: config.name,
@@ -928,6 +1041,7 @@ async function executeRun(
         driftScore: driftReport.driftScore,
         durationMs: gateDurationMs,
         qualityScore,
+        judgeScoreStddev: qualityResult.judgeScoreStddev,
         testsPassed,
         success: true,
       });
@@ -990,7 +1104,10 @@ async function executeRun(
 }
 
 function buildSnapshotFileName(snapshot: StepSnapshotRecord): string {
-  return `${snapshot.config}-run${snapshot.runId}-step${snapshot.stepNumber}-${snapshot.role}.json`;
+  const attemptSuffix = snapshot.role === "judge" && typeof snapshot.attempt === "number" && snapshot.attempt > 1
+    ? `-${snapshot.attempt}`
+    : "";
+  return `${snapshot.config}-run${snapshot.runId}-step${snapshot.stepNumber}-${snapshot.role}${attemptSuffix}.json`;
 }
 
 async function writeSnapshots(outputFolder: string, snapshots: StepSnapshotRecord[]): Promise<void> {
@@ -1043,12 +1160,34 @@ function buildCrossProviderComparisons(summaryRows: SummaryRecord[]): CrossProvi
   return comparisons;
 }
 
-export function buildSummaryRecords(runs: RunRecord[]): SummaryRecord[] {
+export function buildSummaryRecords(
+  runs: RunRecord[],
+  stepRecords: StepRecord[] = [],
+  options: { humanBaselineScores?: number[] } = {},
+): SummaryRecord[] {
   const grouped = new Map<string, RunRecord[]>();
   for (const run of runs) {
     const list = grouped.get(run.config) ?? [];
     list.push(run);
     grouped.set(run.config, list);
+  }
+
+  const flagshipStepRecords = stepRecords.filter((record) => record.modelRole === "flagship");
+  const qualityByConfigAndStep = new Map<string, Map<number, number[]>>();
+  const judgeStddevByConfig = new Map<string, number[]>();
+
+  for (const record of flagshipStepRecords) {
+    const stepMap = qualityByConfigAndStep.get(record.config) ?? new Map<number, number[]>();
+    const scores = stepMap.get(record.stepNumber) ?? [];
+    scores.push(record.qualityScore);
+    stepMap.set(record.stepNumber, scores);
+    qualityByConfigAndStep.set(record.config, stepMap);
+
+    if (typeof record.judgeScoreStddev === "number" && Number.isFinite(record.judgeScoreStddev)) {
+      const stddevs = judgeStddevByConfig.get(record.config) ?? [];
+      stddevs.push(record.judgeScoreStddev);
+      judgeStddevByConfig.set(record.config, stddevs);
+    }
   }
 
   const baselineConfigByProvider: Record<ProviderName, string> = {
@@ -1092,10 +1231,49 @@ export function buildSummaryRecords(runs: RunRecord[]): SummaryRecord[] {
       qualitySamples.length > 1 &&
       baselineQualitySamples.length > 1;
     const costInterval = confidenceInterval(costSamples);
+    const tokenInterval = confidenceInterval(tokenSamples);
+    const qualityInterval = confidenceInterval(qualitySamples);
     const costTTest = hasEnoughSamplesForSignificance ? welchTTest(costSamples, baselineCostSamples) : null;
     const tokenTTest = hasEnoughSamplesForSignificance ? welchTTest(tokenSamples, baselineTokenSamples) : null;
     const qualityTTest = hasEnoughSamplesForSignificance ? welchTTest(qualitySamples, baselineQualitySamples) : null;
     const costEffectSize = hasEnoughSamplesForSignificance ? cohensD(costSamples, baselineCostSamples) : null;
+    const tokenEffectSize = hasEnoughSamplesForSignificance ? cohensD(tokenSamples, baselineTokenSamples) : null;
+    const qualityEffectSize = hasEnoughSamplesForSignificance ? cohensD(qualitySamples, baselineQualitySamples) : null;
+    const costMannWhitney = hasEnoughSamplesForSignificance ? mannWhitneyU(costSamples, baselineCostSamples) : null;
+    const tokenMannWhitney = hasEnoughSamplesForSignificance ? mannWhitneyU(tokenSamples, baselineTokenSamples) : null;
+    const rawPValues = [costTTest?.pValue ?? null, tokenTTest?.pValue ?? null, qualityTTest?.pValue ?? null];
+    const correctedNumericPValues = bonferroniCorrect(
+      rawPValues.filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
+    );
+    let correctedPValueIndex = 0;
+    const correctedPValues = rawPValues.map((value) =>
+      typeof value === "number" && Number.isFinite(value)
+        ? roundNumber(correctedNumericPValues[correctedPValueIndex++] ?? value, 6)
+        : null
+    );
+    const qualityStepMap = qualityByConfigAndStep.get(configName) ?? new Map<number, number[]>();
+    const sortedQualitySteps = [...qualityStepMap.entries()].sort((left, right) => left[0] - right[0]);
+    const humanBaselineScores = options.humanBaselineScores ?? [];
+    const comparableQuality: number[] = [];
+    const comparableHuman: number[] = [];
+
+    for (let index = 0; index < Math.min(sortedQualitySteps.length, humanBaselineScores.length); index += 1) {
+      const qualityValues = sortedQualitySteps[index]?.[1] ?? [];
+      if (qualityValues.length === 0) {
+        continue;
+      }
+
+      comparableQuality.push(average(qualityValues));
+      comparableHuman.push(humanBaselineScores[index] ?? 0);
+    }
+
+    const qualityCorrelationWithHuman =
+      comparableQuality.length > 1 && comparableHuman.length > 1
+        ? roundNumber(pearsonCorrelation(comparableQuality, comparableHuman), 6)
+        : null;
+    const judgeStddevs = judgeStddevByConfig.get(configName) ?? [];
+    const meanJudgeAgreement =
+      judgeStddevs.length > 0 ? roundNumber(Math.max(0, Math.min(1, 1 - average(judgeStddevs) / 10)), 4) : null;
 
     return {
       config: configName,
@@ -1130,9 +1308,22 @@ export function buildSummaryRecords(runs: RunRecord[]): SummaryRecord[] {
       pValue_cost: costTTest ? roundNumber(costTTest.pValue, 6) : null,
       pValue_tokens: tokenTTest ? roundNumber(tokenTTest.pValue, 6) : null,
       pValue_quality: qualityTTest ? roundNumber(qualityTTest.pValue, 6) : null,
+      pValue_cost_corrected: correctedPValues[0] ?? null,
+      pValue_tokens_corrected: correctedPValues[1] ?? null,
+      pValue_quality_corrected: correctedPValues[2] ?? null,
+      pValue_cost_mannwhitney: costMannWhitney ? roundNumber(costMannWhitney.pValue, 6) : null,
+      pValue_tokens_mannwhitney: tokenMannWhitney ? roundNumber(tokenMannWhitney.pValue, 6) : null,
       cohensD_cost: costEffectSize === null ? null : roundNumber(costEffectSize, 4),
+      cohensD_tokens: tokenEffectSize === null ? null : roundNumber(tokenEffectSize, 4),
+      cohensD_quality: qualityEffectSize === null ? null : roundNumber(qualityEffectSize, 4),
       ci95_cost_lower: roundNumber(costInterval.lower, 8),
       ci95_cost_upper: roundNumber(costInterval.upper, 8),
+      ci95_tokens_lower: roundNumber(tokenInterval.lower, 8),
+      ci95_tokens_upper: roundNumber(tokenInterval.upper, 8),
+      ci95_quality_lower: roundNumber(qualityInterval.lower, 8),
+      ci95_quality_upper: roundNumber(qualityInterval.upper, 8),
+      mean_judge_agreement: meanJudgeAgreement,
+      qualityCorrelationWithHuman,
     };
   });
 }
@@ -1196,6 +1387,8 @@ export function buildMarkdownSummary(
 ): string {
   const formatMetric = (value: unknown, decimals: number): string =>
     typeof value === "number" ? value.toFixed(decimals) : "n/a";
+  const formatPValue = (value: number | null | undefined): string =>
+    typeof value === "number" ? `${value.toFixed(6)} (${interpretPValue(value)})` : "n/a";
   const formatCostInterval = (row: SummaryRecord): string => {
     const lower = row.ci95_cost_lower;
     const upper = row.ci95_cost_upper;
@@ -1203,8 +1396,92 @@ export function buildMarkdownSummary(
       ? `[${lower.toFixed(4)}, ${upper.toFixed(4)}]`
       : "n/a";
   };
+  const formatInterval = (lower: number, upper: number): string => `[${lower.toFixed(4)}, ${upper.toFixed(4)}]`;
   const formatConfigLabel = (config: string, provider: ProviderName, mode: StudyMode): string =>
     `${config} (${provider}, ${mode})`;
+  const baselineByProvider = new Map<ProviderName, SummaryRecord>();
+  for (const row of summaryRows) {
+    if (row.mode === "baseline") {
+      baselineByProvider.set(row.provider, row);
+    }
+  }
+
+  const cascadeRows = summaryRows.filter((row) => row.mode === "cascade");
+  const keyFindings: string[] = [];
+  const recommendedSampleSizes: number[] = [];
+
+  for (const row of cascadeRows) {
+    const baseline = baselineByProvider.get(row.provider);
+    if (!baseline) {
+      continue;
+    }
+
+    const savingsText = typeof row.cost_savings_vs_baseline_pct === "number"
+      ? `${row.cost_savings_vs_baseline_pct.toFixed(1)}%`
+      : "n/a";
+    const costP = row.pValue_cost_corrected ?? row.pValue_cost;
+    const tokenP = row.pValue_tokens_corrected ?? row.pValue_tokens;
+    const qualityP = row.pValue_quality_corrected ?? row.pValue_quality;
+    const qualityPct = baseline.mean_quality > 0 ? (row.mean_quality / baseline.mean_quality) * 100 : null;
+    const qualityPctText = typeof qualityPct === "number" ? `${qualityPct.toFixed(1)}%` : "n/a";
+    const qualitySignal = typeof qualityP === "number" && qualityP < 0.05
+      ? "quality degradation detected"
+      : "no statistically significant quality degradation detected";
+
+    keyFindings.push(
+      `- ${row.config} saved ${savingsText} on average vs ${baseline.config} (cost p = ${formatPValue(costP)}, Cohen's d = ${formatMetric(row.cohensD_cost, 4)} ${row.cohensD_cost === null ? "" : interpretCohensD(row.cohensD_cost)}).`,
+    );
+    keyFindings.push(
+      `- ${row.config} retained ${qualityPctText} of baseline quality (cascade=${formatMetric(row.mean_quality, 2)}, baseline=${formatMetric(baseline.mean_quality, 2)}; ${qualitySignal}).`,
+    );
+
+    const candidateEffects = [row.cohensD_cost, row.cohensD_tokens, row.cohensD_quality].filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value),
+    );
+    if (candidateEffects.length > 0) {
+      const largestEffect = Math.max(...candidateEffects.map((value) => Math.abs(value)));
+      const requiredRuns = minimumSampleSize(largestEffect);
+      if (Number.isFinite(requiredRuns)) {
+        recommendedSampleSizes.push(requiredRuns);
+      }
+    }
+
+    if (typeof tokenP === "number") {
+      keyFindings.push(
+        `- ${row.config} token efficiency remains at ${formatMetric(row.token_savings_vs_baseline_pct, 2)}% vs baseline (token p = ${formatPValue(tokenP)}).`,
+      );
+    }
+  }
+
+  if (summaryRows.length === 0) {
+    keyFindings.push("- No cascade configurations were present in this run.");
+  }
+
+  if (summaryRows.every((row) => row.mean_drift_score === 0)) {
+    keyFindings.push("- Drift score remained at 0 across all runs.");
+  } else {
+    const maxDrift = Math.max(...summaryRows.map((row) => row.mean_drift_score));
+    keyFindings.push(`- Drift score was non-zero in at least one configuration (max mean drift: ${maxDrift.toFixed(2)}).`);
+  }
+
+  const runsPerConfig = summaryRows.length > 0 ? summaryRows[0]?.runs ?? 0 : 0;
+  const maxRecommendedRuns = recommendedSampleSizes.length > 0 ? Math.max(...recommendedSampleSizes) : null;
+  const observedEffectMagnitude = Math.max(
+    0,
+    ...summaryRows.flatMap((row) =>
+      [row.cohensD_cost, row.cohensD_tokens, row.cohensD_quality]
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+        .map((value) => Math.abs(value)),
+    ),
+  );
+  const methodologyNote = [
+    `N runs per configuration: ${runsPerConfig}.`,
+    "Statistical tests: Welch's t-test (two-tailed), Cohen's d effect size, 95% confidence intervals, Bonferroni correction, and Mann-Whitney U where reported.",
+    maxRecommendedRuns !== null && runsPerConfig < maxRecommendedRuns
+      ? `Power note: ${runsPerConfig} runs may be insufficient for the observed effects; consider at least ${maxRecommendedRuns} runs per configuration (largest observed |d| = ${observedEffectMagnitude.toFixed(2)}).`
+      : null,
+  ].filter((line): line is string => Boolean(line));
+
   const lines = [
     "# RazorCascade Memory Reliability Report",
     "",
@@ -1215,14 +1492,26 @@ export function buildMarkdownSummary(
     "",
     "## Configuration Summary",
     "",
-    "| Config | Mean Cost (USD) | 95% Cost CI | Mean Drift | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline | Cost p-value | Token p-value | Quality p-value | Cohen's d (Cost) |",
-    "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Config | Mean Cost (USD) | 95% Cost CI | 95% Token CI | 95% Quality CI | Mean Drift | Mean Tokens | Mean Quality | Cost Savings vs Baseline | Token Savings vs Baseline | Cost p-value | Cost p adj | Token p-value | Token p adj | Quality p-value | Quality p adj | Cost MW p | Token MW p | Cohen's d (Cost) | Cohen's d (Tokens) | Cohen's d (Quality) | Judge Agreement | Quality vs Human |",
+    "| --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
 
   for (const row of summaryRows) {
     lines.push(
-      `| ${row.config} | ${formatMetric(row.mean_cost_usd, 4)} | ${formatCostInterval(row)} | ${formatMetric(row.mean_drift_score, 2)} | ${formatMetric(row.mean_tokens, 2)} | ${formatMetric(row.mean_quality, 2)} | ${formatMetric(row.cost_savings_vs_baseline_pct, 2)} | ${formatMetric(row.token_savings_vs_baseline_pct, 2)} | ${formatMetric(row.pValue_cost, 6)} | ${formatMetric(row.pValue_tokens, 6)} | ${formatMetric(row.pValue_quality, 6)} | ${formatMetric(row.cohensD_cost, 4)} |`,
+      `| ${row.config} | ${formatMetric(row.mean_cost_usd, 4)} | ${formatCostInterval(row)} | ${formatInterval(row.ci95_tokens_lower, row.ci95_tokens_upper)} | ${formatInterval(row.ci95_quality_lower, row.ci95_quality_upper)} | ${formatMetric(row.mean_drift_score, 2)} | ${formatMetric(row.mean_tokens, 2)} | ${formatMetric(row.mean_quality, 2)} | ${formatMetric(row.cost_savings_vs_baseline_pct, 2)} | ${formatMetric(row.token_savings_vs_baseline_pct, 2)} | ${formatPValue(row.pValue_cost)} | ${formatPValue(row.pValue_cost_corrected)} | ${formatPValue(row.pValue_tokens)} | ${formatPValue(row.pValue_tokens_corrected)} | ${formatPValue(row.pValue_quality)} | ${formatPValue(row.pValue_quality_corrected)} | ${formatPValue(row.pValue_cost_mannwhitney)} | ${formatPValue(row.pValue_tokens_mannwhitney)} | ${formatMetric(row.cohensD_cost, 4)} | ${formatMetric(row.cohensD_tokens, 4)} | ${formatMetric(row.cohensD_quality, 4)} | ${formatMetric(row.mean_judge_agreement, 4)} | ${formatMetric(row.qualityCorrelationWithHuman, 4)} |`,
     );
+  }
+
+  lines.push("");
+  lines.push("## Key Findings");
+  lines.push("");
+  lines.push(...(keyFindings.length > 0 ? keyFindings : ["- No cascade configurations were present in this run."]));
+
+  if (methodologyNote.length > 0) {
+    lines.push("");
+    lines.push("## Methodology Note");
+    lines.push("");
+    lines.push(...methodologyNote.map((line) => `- ${line}`));
   }
 
   if (crossProviderComparisons.length > 0) {
@@ -1391,10 +1680,12 @@ export async function runStudy(options: {
   judgeModel?: string;
   judgeClient?: ModelClient;
   outputDir?: string;
+  configPath?: string;
   dryRun?: boolean;
   skipTests?: boolean;
   costCap?: number;
   snapshot?: boolean;
+  judgeRepeat?: number;
 }): Promise<{
   outputFolder: string;
   stepRecords: StepRecord[];
@@ -1403,7 +1694,10 @@ export async function runStudy(options: {
   crossProviderComparisons: CrossProviderComparisonRecord[];
   costCapReached: boolean;
 }> {
-  const selectedConfigs = await resolveSelectedConfigs({
+  const configPath = options.configPath ?? resolve("config.json");
+  const configFile = await loadConfigFile(configPath);
+  const priceBook = await loadPriceBook(configPath);
+  const selectedConfigs = await resolveSelectedConfigs(configFile, {
     configName: options.configName,
     configNames: options.configNames,
     all: options.all,
@@ -1412,8 +1706,10 @@ export async function runStudy(options: {
     flagModel: options.flagModel,
     gateModel: options.gateModel,
   });
-  const configFile = await loadConfigFile();
+  const studyTasks = configFile.tasks?.length ? configFile.tasks : STUDY_TASKS;
+  const scoring = configFile.scoring ?? DEFAULT_SCORING;
   const runs = options.runs ?? Number(process.env.RAZORCASCADE_DEFAULT_RUNS || configFile.defaultRuns || 10);
+  const judgeRepeat = Math.max(1, Math.min(3, Math.trunc(options.judgeRepeat ?? 1) || 1));
   const costCap = parseOptionalCostCap(options.costCap);
   const outputRoot = resolve(options.outputDir || configFile.outputDir || "experiments");
   const outputFolder = join(outputRoot, timestampFolderName());
@@ -1444,27 +1740,38 @@ export async function runStudy(options: {
         options.judgeModel,
       );
     for (let runId = 1; runId <= runs; runId += 1) {
-      if (costCap !== undefined && cumulativeEstimatedCostUsd > costCap) {
+      if (costCap !== undefined && cumulativeEstimatedCostUsd >= costCap) {
         costCapReached = true;
-        console.warn(
-          `Cost cap of $${costCap.toFixed(4)} already exceeded at $${cumulativeEstimatedCostUsd.toFixed(4)} before ${config.name} run ${runId}; stopping early and writing partial results.`,
+        logger.warn(
+          `Cost cap of $${costCap.toFixed(4)} reached at $${cumulativeEstimatedCostUsd.toFixed(4)} before ${config.name} run ${runId}; stopping early and writing partial results.`,
         );
         break outer;
       }
 
-      const result = await executeRun(config, runId, clients, cachedTests.passed);
-      stepRecords.push(...result.steps);
-      runRecords.push(result.run);
+      const runResult = await executeRun(
+        config,
+        runId,
+        clients,
+        cachedTests.passed,
+        studyTasks,
+        scoring,
+        judgeRepeat,
+        priceBook,
+      );
+      stepRecords.push(...runResult.steps);
+      runRecords.push(runResult.run);
       if (options.snapshot) {
-        await writeSnapshots(outputFolder, result.snapshots);
+        await writeSnapshots(outputFolder, runResult.snapshots);
       }
-      cumulativeEstimatedCostUsd = roundNumber(cumulativeEstimatedCostUsd + result.run.totalCostUsd, 8);
+      cumulativeEstimatedCostUsd = roundNumber(cumulativeEstimatedCostUsd + runResult.run.totalCostUsd, 8);
     }
   }
 
-  const summaryRecords = buildSummaryRecords(runRecords);
+  const summaryRecords = buildSummaryRecords(runRecords, stepRecords, {
+    humanBaselineScores: configFile.humanBaselineScores,
+  });
   const crossProviderComparisons = buildCrossProviderComparisons(summaryRecords);
-  const dataSource = resolveStudyDataSource(runRecords);
+  const dataSource = runRecords.length > 0 ? resolveStudyDataSource(runRecords) : (options.dryRun ? "mock" : "live");
   const summaryArtifact: StudySummaryArtifact = {
     dataSource,
     configs: summaryRecords,
@@ -1511,6 +1818,16 @@ export async function runStudy(options: {
   };
 }
 
+function configureLogger(options: { verbose?: boolean; quiet?: boolean }): void {
+  logger.setFormat("text");
+  if (options.quiet) {
+    logger.setLevel("error");
+    return;
+  }
+
+  logger.setLevel(options.verbose ? "debug" : "info");
+}
+
 function buildStudyProgram(): Command {
   const program = new Command();
   program
@@ -1526,12 +1843,16 @@ function buildStudyProgram(): Command {
     .option("--gate-model <model>", "Gate model override.")
     .option("--judge", "Score flagship outputs with an LLM judge instead of the heuristic scorer.", false)
     .option("--judge-model <model>", "Optional judge model override. Defaults to the flagship model.")
+    .option("--judge-repeat <number>", "Repeat judge scoring per step up to three times.", "1")
     .option("--cost-cap <usd>", "Stop early once cumulative estimated study cost already exceeds this USD cap.")
     .option("--snapshot", "Write per-step prompt/response JSON snapshots for reproducibility.", false)
     .option("--output-dir <path>", "Root folder for experiment artifacts.")
     .option("--dry-run", "Use deterministic mock clients even if API keys are present.", false)
     .option("--skip-tests", "Skip local tests while running the study.", false)
+    .option("--verbose", "Enable debug logging for study diagnostics.", false)
+    .option("--quiet", "Only emit error-level logs during the study.", false)
     .action(async (options) => {
+      configureLogger(options);
       const provider = options.provider ? ProviderSchema.parse(options.provider) : undefined;
       const mode = options.mode ? StudyModeSchema.parse(options.mode) : undefined;
       const costCap = parseOptionalCostCap(options.costCap);
@@ -1550,6 +1871,7 @@ function buildStudyProgram(): Command {
         gateModel: options.gateModel,
         judge: options.judge,
         judgeModel: options.judgeModel,
+        judgeRepeat: Number(options.judgeRepeat),
         costCap,
         snapshot: options.snapshot,
         outputDir: options.outputDir,
@@ -1593,7 +1915,10 @@ function buildStudyProgram(): Command {
     .description("Compare summary.json artifacts from existing experiment folders.")
     .argument("<experimentFolders...>", "Experiment folders containing summary.json")
     .option("--output <path>", "Optional file path for the rendered comparison table.")
-    .action(async (experimentFolders: string[], options: { output?: string }) => {
+    .option("--verbose", "Enable debug logging for comparison diagnostics.", false)
+    .option("--quiet", "Only emit error-level logs during comparison.", false)
+    .action(async (experimentFolders: string[], options: { output?: string; verbose?: boolean; quiet?: boolean }) => {
+      configureLogger(options);
       const result = await compareStudyArtifacts(experimentFolders, options.output);
       console.log(result.report.trimEnd());
 

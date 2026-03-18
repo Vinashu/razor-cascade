@@ -1,5 +1,6 @@
 import { estimateTokens } from "./metrics.ts";
 import { extractInvariants } from "./invariants.ts";
+import logger from "./logger.ts";
 
 export type ProviderName = "openai" | "anthropic" | "xai" | "gemini";
 export type ModelRole = "flagship" | "gate";
@@ -653,6 +654,10 @@ async function createGeminiClient(options: CreateModelClientOptions): Promise<Mo
 
 export async function createModelClient(options: CreateModelClientOptions): Promise<ModelClient> {
   if (options.fallbackToMock) {
+    logger.debug("Using mock model client fallback.", {
+      provider: options.provider,
+      model: options.model,
+    });
     return new MockModelClient(options.provider, options.model);
   }
 
