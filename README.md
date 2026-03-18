@@ -48,14 +48,21 @@ Using a cheaper same-provider gate model to summarize context before each flagsh
 ├── package.json
 ├── tsconfig.json
 ├── src/
+│   ├── contradictions.ts
 │   ├── gate.ts
+│   ├── invariants.ts
+│   ├── logger.ts
 │   ├── metrics.ts
 │   ├── models.ts
 │   ├── study.ts
 │   └── taskforge.ts
 ├── tests/
+│   ├── contradictions.test.ts
 │   ├── gate.test.ts
+│   ├── invariants.test.ts
+│   ├── logger.test.ts
 │   ├── metrics.test.ts
+│   ├── models.test.ts
 │   ├── study.test.ts
 │   └── taskforge.test.ts
 └── experiments/
@@ -161,6 +168,9 @@ bun run study --configs openai-mini,anthropic,gemini --runs 10
 # One-pass run with LLM-as-judge scoring using GPT-5 nano as the judge
 bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 
+# Cross-provider judge: use Anthropic's claude-4-haiku to score OpenAI outputs
+bun run study --config openai-mini --runs 1 --judge --judge-provider anthropic --judge-model claude-4-haiku
+
 # Repeat judge scoring three times to estimate judge consistency
 bun run study --config openai-mini --runs 2 --judge --judge-repeat 3
 
@@ -207,12 +217,15 @@ Helpful flags:
 - `--mode <baseline|cascade>` with `--provider`, `--flag-model`, and `--gate-model`: run an ad hoc configuration without editing `config.json`.
 - `--judge`: score each flagship response with an LLM judge instead of the built-in heuristic scorer.
 - `--judge-model <model>`: optionally use a separate judge model; if omitted, the flagship model is reused.
+- `--judge-provider <provider>`: use a different provider for the judge model (e.g. `anthropic`, `gemini`). Defaults to the config's own provider. Cross-provider judging avoids potential self-evaluation bias and works around reasoning-model token budget limitations.
 - `--judge-repeat <number>`: repeat each judge scoring pass up to three times and record judge-score variability plus agreement.
 - `--snapshot`: write per-step JSON snapshots under `snapshots/` with the exact system prompt, user prompt, model response, usage, and duration.
 - `--verbose`: enable debug logging from the study pipeline.
 - `--quiet`: suppress non-error structured logs.
 
-Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls are capped to a small output budget to control extra cost.
+Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls use up to 1200 output tokens to accommodate reasoning models that consume part of the budget for chain-of-thought before producing the JSON score.
+
+> **Tip:** Current OpenAI models (gpt-5.4, gpt-5-mini, gpt-5-nano) are reasoning models. Using `--judge-provider anthropic --judge-model claude-4-haiku` gives faster, more cost-effective judge scoring with more nuanced score distributions.
 
 Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 
