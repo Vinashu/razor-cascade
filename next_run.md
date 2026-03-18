@@ -14,7 +14,9 @@
 # Estimated cost: ~$1.50–2.00 (4 × gpt-5.4 runs + judge calls)
 # Estimated time: ~5–8 minutes
 
+```bash
 bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --judge-provider anthropic --judge-model "claude-4-haiku" --judge-repeat 2 --snapshot --verbose
+```
 
 # What to check after it finishes:
 #   1. No "Unable to parse judge score" warnings in the output
@@ -26,4 +28,6 @@ bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --
 #
 # If all looks good, run the full study:
 
+```bash
 bun run src/study.ts --all --runs 10 --judge --judge-provider anthropic --judge-model "claude-4-haiku" --judge-repeat 2 --snapshot --verbose
+```
