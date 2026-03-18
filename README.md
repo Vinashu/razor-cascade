@@ -33,8 +33,8 @@ Using a cheaper same-provider gate model to summarize context before each flagsh
 | --- | --- | --- | --- | --- | --- |
 | OpenAI | `gpt-5.4` | `gpt-5-mini` | $2.50 / $15.00 | $0.25 / $2.00 | Balanced reasoning |
 | OpenAI | `gpt-5.4` | `gpt-5-nano` | $2.50 / $15.00 | $0.05 / $0.40 | Lowest cost OpenAI gate |
-| Anthropic | `claude-4-sonnet` | `claude-4-haiku` | $3.00 / $15.00 | $1.00 / $5.00 | Strong architectural planning |
-| xAI | `grok-4` | `grok-code-fast` | $2.50 / $10.00 | $0.20 / $1.00 | Fast same-provider cascade |
+| Anthropic | `claude-sonnet-4-6` | `claude-haiku-4-5` | $3.00 / $15.00 | $1.00 / $5.00 | Strong architectural planning |
+| xAI | `grok-4` | `grok-code-fast` | $3.00 / $15.00 | $0.20 / $1.50 | Fast same-provider cascade |
 | Gemini | `gemini-2.5-pro` | `gemini-2.5-flash` | $1.25 / $10.00 | $0.30 / $2.50 | Google flagship + fast gate |
 
 ## Repository Layout
@@ -101,8 +101,8 @@ GEMINI_API_KEY=...
 OPENAI_FLAGSHIP_MODEL=gpt-5.4
 OPENAI_GATE_MODEL=gpt-5-mini
 OPENAI_TEMPERATURE_OMIT_MODELS=gpt-5.4,gpt-5-mini,gpt-5-nano
-ANTHROPIC_FLAGSHIP_MODEL=claude-4-sonnet
-ANTHROPIC_GATE_MODEL=claude-4-haiku
+ANTHROPIC_FLAGSHIP_MODEL=claude-sonnet-4-6
+ANTHROPIC_GATE_MODEL=claude-haiku-4-5
 XAI_FLAGSHIP_MODEL=grok-4
 XAI_GATE_MODEL=grok-code-fast
 GEMINI_FLAGSHIP_MODEL=gemini-2.5-pro
@@ -168,8 +168,8 @@ bun run study --configs openai-mini,anthropic,gemini --runs 10
 # One-pass run with LLM-as-judge scoring using GPT-5 nano as the judge
 bun run study --config openai-mini --runs 1 --judge --judge-model gpt-5-nano
 
-# Cross-provider judge: use Anthropic's claude-4-haiku to score OpenAI outputs
-bun run study --config openai-mini --runs 1 --judge --judge-provider anthropic --judge-model claude-4-haiku
+# Cross-provider judge: use Gemini Flash to score OpenAI outputs
+bun run study --config openai-mini --runs 1 --judge --judge-provider gemini --judge-model gemini-2.5-flash
 
 # Repeat judge scoring three times to estimate judge consistency
 bun run study --config openai-mini --runs 2 --judge --judge-repeat 3
@@ -225,7 +225,7 @@ Helpful flags:
 
 Judge mode sends the task objective plus the flagship response to a short rubric-based evaluator prompt and asks for a 0-10 score across completeness, correctness, clarity, and architecture. Judge calls use up to 1200 output tokens to accommodate reasoning models that consume part of the budget for chain-of-thought before producing the JSON score.
 
-> **Tip:** Current OpenAI models (gpt-5.4, gpt-5-mini, gpt-5-nano) are reasoning models. Using `--judge-provider anthropic --judge-model claude-4-haiku` gives faster, more cost-effective judge scoring with more nuanced score distributions.
+> **Tip:** Current OpenAI models (gpt-5.4, gpt-5-mini, gpt-5-nano) are reasoning models. Using `--judge-provider gemini --judge-model gemini-2.5-flash` gives faster, more cost-effective judge scoring with more nuanced score distributions.
 
 Cost-cap mode is especially useful for live `--all` or high-run studies. If the cumulative estimated spend is already above the configured cap, the runner stops early, logs a warning, and still writes the partial results collected so far.
 

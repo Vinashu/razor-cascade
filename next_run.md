@@ -6,7 +6,7 @@
 # What it covers:
 #   - 2 configs: one baseline + its cascade pair (matched comparison)
 #   - 2 runs each: enough to produce p-values, CIs, and Cohen's d
-#   - Cross-provider judge: Anthropic claude-4-haiku scoring OpenAI outputs
+#   - Cross-provider judge: Gemini 2.5 Flash scoring OpenAI outputs
 #   - Judge repeat 2: validates judge consistency (judgeScoreStddev)
 #   - Snapshots on: lets you inspect the raw prompts/responses
 #   - Verbose: see debug logs for any extraction issues
@@ -15,7 +15,7 @@
 # Estimated time: ~5–8 minutes
 
 ```bash
-bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --judge-provider anthropic --judge-model "claude-4-haiku" --judge-repeat 2 --snapshot --verbose
+bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --judge-provider gemini --judge-model "gemini-2.5-flash" --judge-repeat 2 --snapshot --verbose
 ```
 
 # What to check after it finishes:
@@ -29,5 +29,5 @@ bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --
 # If all looks good, run the full study:
 
 ```bash
-bun run src/study.ts --all --runs 10 --judge --judge-provider anthropic --judge-model "claude-4-haiku" --judge-repeat 2 --snapshot --verbose
+bun run src/study.ts --all --runs 10 --judge --judge-provider gemini --judge-model "gemini-2.5-flash" --judge-repeat 2 --snapshot --verbose
 ```

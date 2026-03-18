@@ -52,8 +52,8 @@ export const DEFAULT_MODELS: Record<ProviderName, Record<ModelRole, string>> = {
     gate: "gpt-5-mini",
   },
   anthropic: {
-    flagship: "claude-4-sonnet",
-    gate: "claude-4-haiku",
+    flagship: "claude-sonnet-4-6",
+    gate: "claude-haiku-4-5",
   },
   xai: {
     flagship: "grok-4",

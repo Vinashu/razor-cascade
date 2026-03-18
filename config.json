@@ -8,14 +8,14 @@
       "gpt-5-nano": { "inputUsdPerMillion": 0.05, "outputUsdPerMillion": 0.4 }
     },
     "anthropic": {
-      "claude-4-sonnet": { "inputUsdPerMillion": 3, "outputUsdPerMillion": 15 },
-      "claude-4-haiku": { "inputUsdPerMillion": 1, "outputUsdPerMillion": 5 }
+      "claude-sonnet-4-6": { "inputUsdPerMillion": 3, "outputUsdPerMillion": 15 },
+      "claude-haiku-4-5": { "inputUsdPerMillion": 1, "outputUsdPerMillion": 5 }
     },
     "xai": {
-      "grok-4": { "inputUsdPerMillion": 2.5, "outputUsdPerMillion": 10 },
-      "grok-code-fast": { "inputUsdPerMillion": 0.2, "outputUsdPerMillion": 1 },
-      "grok-4.20-beta": { "inputUsdPerMillion": 2.5, "outputUsdPerMillion": 10 },
-      "grok-4-fast": { "inputUsdPerMillion": 0.2, "outputUsdPerMillion": 1.5 }
+      "grok-4": { "inputUsdPerMillion": 3, "outputUsdPerMillion": 15 },
+      "grok-code-fast": { "inputUsdPerMillion": 0.2, "outputUsdPerMillion": 1.5 },
+      "grok-4.20-beta": { "inputUsdPerMillion": 2, "outputUsdPerMillion": 6 },
+      "grok-4-fast": { "inputUsdPerMillion": 0.2, "outputUsdPerMillion": 0.5 }
     },
     "gemini": {
       "gemini-2.5-pro": { "inputUsdPerMillion": 1.25, "outputUsdPerMillion": 10 },
@@ -59,15 +59,15 @@
       "description": "Anthropic flagship only with full conversation history at every step.",
       "mode": "baseline",
       "provider": "anthropic",
-      "flagshipModel": "claude-4-sonnet"
+      "flagshipModel": "claude-sonnet-4-6"
     },
     {
       "name": "anthropic",
-      "description": "Anthropic cascade using Claude 4 Sonnet with Claude 4 Haiku as the gate.",
+      "description": "Anthropic cascade using Claude Sonnet 4.6 with Claude Haiku 4.5 as the gate.",
       "mode": "cascade",
       "provider": "anthropic",
-      "flagshipModel": "claude-4-sonnet",
-      "gateModel": "claude-4-haiku"
+      "flagshipModel": "claude-sonnet-4-6",
+      "gateModel": "claude-haiku-4-5"
     },
     {
       "name": "baseline-grok",
