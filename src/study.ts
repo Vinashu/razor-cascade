@@ -629,7 +629,7 @@ Respond with ONLY a valid JSON object where "score" is the integer sum of the fo
   const response = await client.generateText({
     system: "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
     prompt: rubricPrompt,
-    maxOutputTokens: 100,
+    maxOutputTokens: 1200,
     metadata: {
       kind: "judge",
       task: String(task.number),
@@ -670,7 +670,7 @@ Respond with ONLY a valid JSON object where "score" is the integer sum of the fo
     system,
     prompt: rubricPrompt,
     temperature: 0.05 + Math.min(0.4, attemptNumber * 0.05),
-    maxOutputTokens: 100,
+    maxOutputTokens: 1200,
     metadata: {
       kind: "judge",
       task: String(task.number),
@@ -879,6 +879,7 @@ async function createClients(
   dryRun: boolean,
   judgeEnabled: boolean,
   judgeModel?: string,
+  judgeProvider?: ProviderName,
 ): Promise<StudyClients> {
   const apiKey = getProviderApiKey(config.provider);
   const fallbackToMock = dryRun || !apiKey;
@@ -889,13 +890,16 @@ async function createClients(
     fallbackToMock,
   });
 
+  const effectiveJudgeProvider = judgeProvider ?? config.provider;
+  const judgeApiKey = judgeProvider ? getProviderApiKey(judgeProvider) : apiKey;
+  const judgeFallbackToMock = dryRun || !judgeApiKey;
   const judge = judgeEnabled
     ? judgeModel
       ? await createModelClient({
-        provider: config.provider,
+        provider: effectiveJudgeProvider,
         model: judgeModel,
-        apiKey,
-        fallbackToMock,
+        apiKey: judgeApiKey,
+        fallbackToMock: judgeFallbackToMock,
       })
       : flagship
     : undefined;
@@ -1678,6 +1682,7 @@ export async function runStudy(options: {
   gateModel?: string;
   judge?: boolean;
   judgeModel?: string;
+  judgeProvider?: ProviderName;
   judgeClient?: ModelClient;
   outputDir?: string;
   configPath?: string;
@@ -1730,6 +1735,7 @@ export async function runStudy(options: {
           Boolean(options.dryRun),
           false,
           options.judgeModel,
+          options.judgeProvider,
         )),
         judge: options.judgeClient,
       }
@@ -1738,6 +1744,7 @@ export async function runStudy(options: {
         Boolean(options.dryRun),
         Boolean(options.judge),
         options.judgeModel,
+        options.judgeProvider,
       );
     for (let runId = 1; runId <= runs; runId += 1) {
       if (costCap !== undefined && cumulativeEstimatedCostUsd >= costCap) {
@@ -1843,6 +1850,7 @@ function buildStudyProgram(): Command {
     .option("--gate-model <model>", "Gate model override.")
     .option("--judge", "Score flagship outputs with an LLM judge instead of the heuristic scorer.", false)
     .option("--judge-model <model>", "Optional judge model override. Defaults to the flagship model.")
+    .option("--judge-provider <provider>", "Provider for the judge model (e.g. anthropic, gemini). Defaults to the config provider.")
     .option("--judge-repeat <number>", "Repeat judge scoring per step up to three times.", "1")
     .option("--cost-cap <usd>", "Stop early once cumulative estimated study cost already exceeds this USD cap.")
     .option("--snapshot", "Write per-step prompt/response JSON snapshots for reproducibility.", false)
@@ -1871,6 +1879,7 @@ function buildStudyProgram(): Command {
         gateModel: options.gateModel,
         judge: options.judge,
         judgeModel: options.judgeModel,
+        judgeProvider: options.judgeProvider ? ProviderSchema.parse(options.judgeProvider) : undefined,
         judgeRepeat: Number(options.judgeRepeat),
         costCap,
         snapshot: options.snapshot,

@@ -451,7 +451,75 @@ function extractOpenAiResponseText(response: Record<string, unknown>): string {
     }
   }
 
-  return chunks.join("\n").trim();
+  if (chunks.length > 0) {
+    return chunks.join("\n").trim();
+  }
+
+  // Fallback: reasoning model output (output[type=reasoning].summary[].text)
+  for (const item of output) {
+    if (typeof item !== "object" || item === null) {
+      continue;
+    }
+
+    if ((item as { type?: unknown }).type === "reasoning") {
+      const summary = Array.isArray((item as { summary?: unknown }).summary)
+        ? (item as { summary: unknown[] }).summary
+        : [];
+      for (const entry of summary) {
+        if (typeof entry !== "object" || entry === null) {
+          continue;
+        }
+
+        const text = (entry as { text?: unknown }).text;
+        if (typeof text === "string" && text.trim()) {
+          chunks.push(text.trim());
+        }
+      }
+    }
+  }
+
+  if (chunks.length > 0) {
+    return chunks.join("\n").trim();
+  }
+
+  // Fallback: Chat Completions-style response (choices[].message.content)
+  const choices = Array.isArray(response.choices) ? response.choices : [];
+  for (const choice of choices) {
+    if (typeof choice !== "object" || choice === null) {
+      continue;
+    }
+
+    const message = (choice as { message?: { content?: unknown } }).message;
+    if (message && typeof message.content === "string" && message.content.trim()) {
+      chunks.push(message.content.trim());
+    }
+  }
+
+  if (chunks.length > 0) {
+    return chunks.join("\n").trim();
+  }
+
+  // Fallback: root-level text field (some Responses API versions)
+  const rootText = response.text;
+  if (typeof rootText === "string" && rootText.trim()) {
+    return rootText.trim();
+  }
+
+  const result = chunks.join("\n").trim();
+  if (!result) {
+    logger.debug("OpenAI response text extraction returned empty.", {
+      hasOutputText: typeof response.output_text,
+      outputLength: output.length,
+      choicesLength: choices.length,
+      responseKeys: Object.keys(response).join(","),
+      outputItemTypes: output.map((item) => {
+        if (typeof item !== "object" || item === null) return "non-object";
+        return (item as { type?: unknown }).type ?? "no-type";
+      }).join(","),
+    });
+  }
+
+  return result;
 }
 
 async function createOpenAiClient(options: CreateModelClientOptions): Promise<ModelClient> {
