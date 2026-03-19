@@ -675,7 +675,7 @@ async function createXaiCompatClient(options: CreateModelClientOptions): Promise
           },
           raw: body,
         };
-      });
+      }, { maxRetries: 5, baseDelayMs: 3_000 });
     },
   };
 }

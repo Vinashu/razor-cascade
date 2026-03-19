@@ -669,7 +669,7 @@ Respond with ONLY a valid JSON object where "score" is the integer sum of the fo
   const response = await client.generateText({
     system,
     prompt: rubricPrompt,
-    temperature: 0.05 + Math.min(0.4, attemptNumber * 0.05),
+    temperature: 0,
     maxOutputTokens: 1200,
     metadata: {
       kind: "judge",
@@ -936,6 +936,7 @@ async function executeRun(
   const snapshots: StepSnapshotRecord[] = [];
 
   for (const task of tasks) {
+    try {
     const context = config.mode === "baseline" ? fullHistory.join("\n\n") : cascadedContext;
     const prompt = buildTaskPrompt(task, config.mode, context);
     const flagshipResult = await runSingleModelStep(clients.flagship, prompt, task);
@@ -1066,6 +1067,38 @@ async function executeRun(
       cascadedContext = formatGateSummary(gateResult.summary);
     } else {
       cascadedContext = flagshipResult.response;
+    }
+    } catch (stepError) {
+      const reason = stepError instanceof Error ? stepError.message : String(stepError);
+      logger.error(
+        `Step ${task.number} (${task.title}) failed for ${config.name} run ${runId}; skipping step and continuing.`,
+        { reason },
+      );
+      stepRecords.push({
+        config: config.name,
+        runId,
+        step: task.number,
+        stepNumber: task.number,
+        stepTitle: task.title,
+        modelRole: "flagship",
+        provider: config.provider,
+        requestedModel: config.flagshipModel,
+        actualMode: "live",
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        cost: 0,
+        estimatedCostUsd: 0,
+        invariantCount: invariantMemory.length,
+        missingInvariants: 0,
+        contradictions: 0,
+        driftScore: 0,
+        durationMs: 0,
+        qualityScore: 0,
+        judgeScoreStddev: null,
+        testsPassed,
+        success: false,
+      });
     }
   }
 
@@ -1755,6 +1788,7 @@ export async function runStudy(options: {
         break outer;
       }
 
+      try {
       const runResult = await executeRun(
         config,
         runId,
@@ -1771,6 +1805,13 @@ export async function runStudy(options: {
         await writeSnapshots(outputFolder, runResult.snapshots);
       }
       cumulativeEstimatedCostUsd = roundNumber(cumulativeEstimatedCostUsd + runResult.run.totalCostUsd, 8);
+      } catch (runError) {
+        const reason = runError instanceof Error ? runError.message : String(runError);
+        logger.error(
+          `Run ${runId} of config ${config.name} failed entirely; skipping run and continuing study.`,
+          { reason },
+        );
+      }
     }
   }
 
