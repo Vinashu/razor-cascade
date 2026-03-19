@@ -7,9 +7,9 @@ import logger from "./logger.ts";
 
 export const GateSummarySchema = z.object({
   goal: z.string().min(1),
-  decisions: z.array(z.string()).min(1).max(6),
-  risks: z.array(z.string()).max(3),
-  snippets: z.array(z.string()).max(4),
+  decisions: z.array(z.string()).max(6).default([]),
+  risks: z.array(z.string()).max(3).default([]),
+  snippets: z.array(z.string()).max(4).default([]),
   invariants: z.array(z.string()).default([]),
 });
 
@@ -222,9 +222,11 @@ export async function summarizeWithGate(options: {
       prompt,
       usage: response.usage,
     };
-  } catch {
+  } catch (err) {
     logger.warn("Gate summary parsing failed; falling back to heuristic summary.", {
       hasPreviousInvariants: previousInvariants.length > 0,
+      parseError: err instanceof Error ? err.message : String(err),
+      rawTextPreview: response.text.slice(0, 400),
     });
     const draftSummary = heuristicGateSummary(options.history, options.latestChanges, previousInvariants);
     return {
