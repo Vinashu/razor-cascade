@@ -770,7 +770,7 @@ async function runSingleModelStep(
   const response = await client.generateText({
     system,
     prompt,
-    maxOutputTokens: 900,
+    maxOutputTokens: 2000,
     metadata: {
       kind: "task",
       task: String(task.number),

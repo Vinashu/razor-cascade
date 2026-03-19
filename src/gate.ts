@@ -205,7 +205,7 @@ export async function summarizeWithGate(options: {
   const response = await options.client.generateText({
     system,
     prompt,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 4096,
     metadata: {
       kind: "gate",
     },
