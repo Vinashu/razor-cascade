@@ -1164,7 +1164,7 @@ async function writeSnapshots(outputFolder: string, snapshots: StepSnapshotRecor
   );
 }
 
-function buildCrossProviderComparisons(summaryRows: SummaryRecord[]): CrossProviderComparisonRecord[] {
+export function buildCrossProviderComparisons(summaryRows: SummaryRecord[]): CrossProviderComparisonRecord[] {
   if (new Set(summaryRows.map((row) => row.provider)).size < 2) {
     return [];
   }
