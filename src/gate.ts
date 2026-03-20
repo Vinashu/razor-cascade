@@ -66,12 +66,39 @@ function extractJsonBlock(text: string): string | null {
   }
 
   const firstBrace = text.indexOf("{");
+  if (firstBrace < 0) return null;
+
   const lastBrace = text.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
+  if (lastBrace > firstBrace) {
     return text.slice(firstBrace, lastBrace + 1);
   }
 
-  return null;
+  // Truncated response — no closing brace. Try to salvage by closing open
+  // brackets and braces so JSON.parse has a chance to recover partial fields.
+  const partial = text.slice(firstBrace);
+  let repaired = partial;
+  // Drop any incomplete trailing string value (last open quote without a close)
+  repaired = repaired.replace(/,?\s*"[^"]*$/, "");
+  // Drop any trailing incomplete array item or key
+  repaired = repaired.replace(/,\s*$/, "");
+  // Count unclosed brackets and braces and close them
+  let openBrackets = 0;
+  let openBraces = 0;
+  let inString = false;
+  let escape = false;
+  for (const ch of repaired) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "[") openBrackets += 1;
+    else if (ch === "]") openBrackets -= 1;
+    else if (ch === "{") openBraces += 1;
+    else if (ch === "}") openBraces -= 1;
+  }
+  repaired += "]".repeat(Math.max(0, openBrackets));
+  repaired += "}".repeat(Math.max(0, openBraces));
+  return repaired;
 }
 
 function collectCandidateBullets(text: string, pattern: RegExp, limit: number): string[] {
@@ -205,7 +232,7 @@ export async function summarizeWithGate(options: {
   const response = await options.client.generateText({
     system,
     prompt,
-    maxOutputTokens: 4096,
+    maxOutputTokens: 8192,
     metadata: {
       kind: "gate",
     },
