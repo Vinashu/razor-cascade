@@ -54,6 +54,7 @@ Using a cheaper same-provider gate model to summarize context before each flagsh
 │   ├── logger.ts
 │   ├── metrics.ts
 │   ├── models.ts
+│   ├── replay.ts
 │   ├── study.ts
 │   └── taskforge.ts
 ├── tests/
@@ -207,6 +208,58 @@ bun run study compare experiments/2026-03-16T15-22-12-243Z experiments/2026-03-1
 
 The `compare` subcommand reads each experiment folder's `summary.json`, renders a side-by-side Markdown table with the key config metrics, prints it to stdout, and can optionally write the same report to a file. It does not call any model APIs or rerun the study.
 
+## Replaying Snapshots (Recovering Partial Data)
+
+If a study run crashes partway through — e.g. a provider returns a terminal 503 after all retries — the snapshots already written to disk are fully reusable. The `replay` tool reads every `*.json` file from an existing `snapshots/` folder and regenerates all study artifacts (`steps.csv`, `runs.csv`, `summary.json`, `dashboard.html`, `report.md`) without making any API calls.
+
+```bash
+# Regenerate artifacts from a previous (possibly crashed) experiment
+bun run src/replay.ts --input experiments/2026-03-19T00-13-38-875Z
+```
+
+The output is written to a new timestamped folder:
+
+```
+experiments/replay-2026-03-19T12-10-08-926Z/
+  steps.csv
+  runs.csv
+  summary.json
+  dashboard.html
+  report.md
+```
+
+Quality scores are extracted directly from the saved judge snapshot responses — no re-scoring occurs. Cost figures are recalculated from the token usage stored in each snapshot and the `priceBook` in `config.json`.
+
+### Replay Flags
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--input <folder>` | required | Experiment folder containing a `snapshots/` subdirectory. |
+| `--output-dir <path>` | `experiments/` | Root folder for the generated output. A new timestamped subfolder is created inside it. |
+| `--config-path <path>` | `config.json` | Path to the config file used to look up provider, model, and pricing metadata. |
+
+### Typical Crash-Recovery Workflow
+
+```powershell
+# 1. Crash happened partway through --all --runs 10.
+#    The snapshots folder contains complete data for some configs.
+
+# 2. Recover what was collected before the crash:
+bun run src/replay.ts --input experiments/2026-03-19T00-13-38-875Z
+
+# 3. Run only the missing or incomplete configs:
+bun run src/study.ts --configs "grok,baseline-gemini,gemini" --runs 10 \
+  --judge --judge-provider gemini --judge-model "gemini-2.5-flash" \
+  --judge-repeat 2 --snapshot --verbose
+
+# 4. Replay the new folder to produce a clean artifact set for those configs:
+bun run src/replay.ts --input experiments/<new-folder>
+```
+
+If you want a single unified artifact set combining both runs, copy the snapshot files from both folders into a single `snapshots/` directory and run replay once against that merged folder.
+
+> **Note:** Drift and invariant metrics (`missingInvariants`, `contradictions`, `driftScore`) are not reconstructed during replay because they depend on in-flight conversation state that is not persisted in snapshot files. These fields are zeroed out in the replayed output. All cost, token, and quality metrics are fully accurate.
+
 Helpful flags:
 
 - `--dry-run`: force deterministic mock clients even if API keys exist. Generated `summary.json`, `report.md`, and `dashboard.html` artifacts are labeled as mock data.
@@ -270,7 +323,7 @@ Each study execution writes a timestamped folder under `experiments/` containing
 - `summary.json`: a top-level `dataSource` field (`mock` or `live`) plus a `configs` array with config-level statistics, corrected p-values, Mann-Whitney alternatives, effect sizes, confidence intervals for cost, tokens, and quality, judge-agreement metrics, and optional human-correlation fields. When more than one provider is present, it also includes `cross_provider_comparisons` with pairwise cost ratios, token ratios, and quality deltas across providers.
 - `dashboard.html`: simple zero-dependency HTML visualization with effect-size and significance interpretations layered onto the statistical panels.
 - `report.md`: Markdown summary suitable for publication notes, including the expanded significance table, auto-generated `Key Findings`, `Methodology Note`, and a cross-provider comparison table when applicable.
-- `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging.
+- `snapshots/` when `--snapshot` is enabled: per-call JSON traces for reproducibility and debugging. These files can be fed into the `replay` tool to regenerate all other artifacts without any API calls — useful for recovering data from crashed or interrupted study runs.
 
 The `study compare` subcommand is post-hoc analysis only, so it reads these existing artifacts in place and does not create a new experiment folder unless you explicitly point `--output` at a file path.
 

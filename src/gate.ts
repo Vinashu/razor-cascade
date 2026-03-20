@@ -7,9 +7,9 @@ import logger from "./logger.ts";
 
 export const GateSummarySchema = z.object({
   goal: z.string().min(1),
-  decisions: z.array(z.string()).max(6).default([]),
-  risks: z.array(z.string()).max(3).default([]),
-  snippets: z.array(z.string()).max(4).default([]),
+  decisions: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  snippets: z.array(z.string()).default([]),
   invariants: z.array(z.string()).default([]),
 });
 
