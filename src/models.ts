@@ -144,7 +144,7 @@ export function shouldOmitOpenAiTemperature(
   return patterns.some((pattern) => matchesTemperatureOmitModel(normalizedModel, pattern));
 }
 
-const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503]);
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 529]);
 const RETRYABLE_ERROR_CODES = new Set([
   "ECONNABORTED",
   "ECONNREFUSED",
@@ -164,6 +164,7 @@ const RETRYABLE_MESSAGE_SNIPPETS = [
   "fetch failed",
   "network error",
   "network request failed",
+  "overloaded",
   "socket hang up",
   "temporarily unavailable",
   "timed out",
@@ -715,7 +716,7 @@ async function createGeminiClient(options: CreateModelClientOptions): Promise<Mo
           },
           raw: response,
         };
-      });
+      }, { maxRetries: 5, baseDelayMs: 5_000 });
     },
   };
 }

@@ -1,9 +1,60 @@
 # RazorCascade: Same-Provider Model Cascading Cuts API Costs by 46–52% in Incremental Agentic Coding
 
-**Authors:** Rogerio de Leon Pereira  
+**Authors:** Rogerio de Leon Pereira, Claude (Anthropic), Grok (xAI), GPT (OpenAI)  
 **Date:** March 2026  
 **Repository:** [github.com/vinashu/razor-cascade](https://github.com/vinashu/razor-cascade)  
 **License:** MIT
+
+---
+
+## Use of AI Disclaimer
+Rogerio de Leon Pereira served as the human-in-the-loop. He idealized the study and orchestrated AI agents to brainstorm ideas, build the codebase, analyze the data, write and review the report.
+
+---
+
+## Errors 
+
+[error] 2026-03-24T15:05:24.718Z Step 2 (Task data model + JSON persistence) failed for baseline-gemini run 1; skipping step and continuing. {"reason":"{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"}
+[error] 2026-03-24T15:10:26.278Z Step 2 (Task data model + JSON persistence) failed for gemini run 1; skipping step and continuing. {"reason":"{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}"}
+
+---
+
+## Log
+
+Artifacts written to C:\Repos\razor-cascade\experiments\2026-03-24T14-25-51-474Z
+
+Mean cost
+baseline-openai #########                0.21
+openai-mini    ######                   0.14
+openai-nano    ####                     0.1
+baseline-anthropic ######################## 0.56
+anthropic      ####################     0.47
+baseline-grok  ########                 0.2
+grok           ######                   0.13
+baseline-gemini ##                       0.05
+gemini         ##                       0.05
+
+Mean tokens
+baseline-openai ######                   43711
+openai-mini    #########                66537
+openai-nano    ##########               68700
+baseline-anthropic ###############          108453
+anthropic      ######################## 169531
+baseline-grok  ######                   41193
+grok           #########                64832
+baseline-gemini ##                       16634
+gemini         #####                    34340
+
+Mean drift
+baseline-openai #                        0
+openai-mini    #                        2.3
+openai-nano    #                        2.2
+baseline-anthropic #                        0
+anthropic      ######################## 67.6
+baseline-grok  #                        0
+grok           #                        1.1
+baseline-gemini #                        0
+gemini         #                        0.3
 
 ---
 
