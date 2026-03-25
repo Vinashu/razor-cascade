@@ -1,0 +1,10 @@
+{
+  "system": "You are a senior engineer writing concise implementation updates.",
+  "prompt": "You are contributing to TaskForge, a TypeScript + Bun CLI used in the RazorCascade memory reliability study.\n\nExecution mode: cascade\nStandardized task: 10. Report export\nObjective: Export Markdown and HTML outputs suitable for publication or sharing.\n\nContext from prior work:\nGoal: Implement a `refine` command to create new task versions based on feedback, archiving old versions to preserve history.\nDecisions: Use Bun runtime and `bun:test` for CLI and testing; `commander.js` for CLI argument parsing; Atomic write-and-rename strategy for JSON file persistence; Tasks stored in `~/.taskforge/tasks.json`; Archived tasks and summaries stored in `~/.taskforge/history.jsonl` (JSON Lines); Task model supports parent-child (`parentId`, `subtaskIds`) and versioning (`previousVersionId`); LLM integration for task decomposition and refinement\nRisks: Transaction atomicity failures during multi-file/multi-task updates could lead to data loss; Hierarchy corruption if parent/child links are not consistently updated during task modifications; LLM dependency introduces external latency, cost, and quality variability\nSnippets: interface Task {\n  id: string;\n  name: string;\n  status: 'pending' | 'running' | 'completed' | 'failed' | 'refined';\n  createdAt: number;\n  updatedAt: number;\n  parentId?: string;\n  subtaskIds?: string[];\n  previousVersionId?: string;\n}\nconst tasksPath = '~/.taskforge/tasks.json';\nconst historyPath = '~/.taskforge/history.jsonl';\nInvariants: Set `task.status = 'completed'` and update `task\n\nProduce a concise engineering update that includes:\n1. Goal\n2. Proposed implementation details\n3. Validation or testing\n4. Risks",
+  "response": "",
+  "usage": {
+    "inputTokens": 403,
+    "outputTokens": 0
+  },
+  "durationMs": 17253
+}

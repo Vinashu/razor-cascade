@@ -1,0 +1,11 @@
+node_modules/
+.env
+.taskforge/
+coverage/
+dist/
+*.log
+
+experiments/*
+!experiments/.gitkeep
+
+old_docs/

@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Task data model + JSON persistence\nTask objective: Define a typed task model and persist it safely to JSON storage.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To**: Engineering Team\n**From**: Senior Engineer\n**Subject**: Implementation Plan: Task Data Model & JSON Persistence (Baseline)\n\n### 1. Goal\nDefine a strongly-typed data model for tasks and implement a persistence layer to safely read and write this data to a local JSON file. This provides the foundational data handling for the TaskForge baseline.\n\n### 2. Proposed Implementation Details\n*   **Task Model**:\n    *   Define a TypeScript `interface` named `Task` in a new `src/core/task.model.ts` file.\n    *   Properties will include `id: string` (UUID\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 5}\n```",
+  "usage": {
+    "inputTokens": 367,
+    "outputTokens": 14
+  },
+  "durationMs": 9001
+}

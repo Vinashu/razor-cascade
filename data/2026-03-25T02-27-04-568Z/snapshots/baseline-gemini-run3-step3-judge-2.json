@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: List, filter, and view tasks\nTask objective: Support querying tasks by status, priority, tags, and free-text search.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**Subject: TaskForge Query and View Implementation Plan**\n\n### 1. Goal\nImplement a `list` command to query tasks based on multiple criteria and a `view` command to display the details of a single task. This will enable filtering by status, priority, tags, and free-text search.\n\n### 2. Proposed Implementation Details\n*   **Data Model Extension:**\n    *   Update the `Task` interface in `src/types.ts` to include optional fields for new queryable attributes: `priority?: 'low' | 'medium' | 'high'` and `tags?: string[]`.\n*   **CLI Command Expansion:**\n    *   Introduce a new `list` command (\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 6}\n```",
+  "usage": {
+    "inputTokens": 390,
+    "outputTokens": 14
+  },
+  "durationMs": 469
+}

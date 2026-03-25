@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Complete/delete commands + validation\nTask objective: Add complete/delete flows with good error handling and state validation.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n### TaskForge Implementation Update: `cascade` mode modifications\n\n**1. Goal**\nImplement `complete` and `delete` commands for the `cascade` execution mode. This includes robust validation for task IDs to ensure data integrity and provide clear user feedback on invalid operations.\n\n**2. Proposed Implementation Details**\n*   **CLI Commands:** Introduce two new subcommands via `commander`:\n    *   `taskforge cascade complete <id>`\n    *   `taskforge cascade delete <id>`\n*   **Task Model Extension:** Add a `status` field to the `Task` interface to track completion state: `status: 'pending' | 'completed'`. New tasks will default to `'pending'`.\n*   **Core Logic (Read-Modify-Write):**\n    1.  Both commands will leverage `StorageService` to read all tasks from the `.tmp` file into memory.\n    2.  **Validation:** The logic will first validate that a\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 5}\n```",
+  "usage": {
+    "inputTokens": 443,
+    "outputTokens": 14
+  },
+  "durationMs": 1319
+}

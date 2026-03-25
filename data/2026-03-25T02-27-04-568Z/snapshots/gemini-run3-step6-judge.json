@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: AI-assisted decomposition\nTask objective: Break goals into practical subtasks and optionally persist them.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n### TaskForge Engineering Update\n\n**1. Goal**\nImplement Task 6: AI-assisted decomposition. This introduces a `task decompose <id>` command to break down a high-level task into a list of actionable, structured subtasks using an external AI service.\n\n**2. Proposed Implementation Details**\n*   **CLI Command:** Introduce `task decompose <id>`. It will target a single, existing task by its ID.\n*   **AI Integration:**\n    *   Utilize an OpenAI-compatible API client. The API key will be configured via an environment variable (`TASKFORGE_OPENAI_API_KEY`).\n    *\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 5}\n```",
+  "usage": {
+    "inputTokens": 374,
+    "outputTokens": 14
+  },
+  "durationMs": 482
+}

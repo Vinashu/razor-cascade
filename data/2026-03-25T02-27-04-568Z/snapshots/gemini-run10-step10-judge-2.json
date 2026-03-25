@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Report export\nTask objective: Export Markdown and HTML outputs suitable for publication or sharing.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "I notice that the candidate response section is empty - no engineering update was provided for me to evaluate against the task objective of \"Export Markdown and HTML outputs suitable for publication or sharing.\"\n\nWithout a candidate response to assess, I cannot evaluate:\n- Completeness (whether it addresses the export objective)\n- Correctness (technical soundness of implementation)\n- Clarity (understandability and actionability)\n- Architecture (adherence to design principles)\n\n```json\n{\"score\": 0}\n```",
+  "usage": {
+    "inputTokens": 222,
+    "outputTokens": 111
+  },
+  "durationMs": 1404
+}

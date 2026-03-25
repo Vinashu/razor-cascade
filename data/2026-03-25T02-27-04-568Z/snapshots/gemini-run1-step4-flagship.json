@@ -1,0 +1,10 @@
+{
+  "system": "You are a senior engineer writing concise implementation updates.",
+  "prompt": "You are contributing to TaskForge, a TypeScript + Bun CLI used in the RazorCascade memory reliability study.\n\nExecution mode: cascade\nStandardized task: 4. Complete/delete commands + validation\nObjective: Add complete/delete flows with good error handling and state validation.\n\nContext from prior work:\nGoal: Implement `cascade list` to query tasks by status, priority, tags, and free-text search, displaying results in a structured format.\nDecisions: Use Bun CLI with `commander.js`; Persist tasks in JSON using atomic writes via a temporary file; Define `Task` model in `src/types.ts`; Implement `cascade list` command with filters (`--status`, `--priority`, `--tags`, `[search-term]`); Load all tasks into memory for filtering; Display results using `console.table()`\nRisks: Schema migration strategy for `Task` model changes; Performance bottleneck for large task sets during in-memory filtering; Race conditions with concurrent CLI executions writing to the same file\nSnippets: interface Task {\n  // ... existing fields\n  title: string;\n  priority: 'low' | 'medium' | 'high';\n  tags?: string[];\n}\nInvariants: file path = .tmp\n\nProduce a concise engineering update that includes:\n1. Goal\n2. Proposed implementation details\n3. Validation or testing\n4. Risks",
+  "response": "**Subject: Implementation Update: Task Completion & Deletion**\n\n### 1. Goal\nImplement `cascade complete <id>` and `cascade delete <id>` commands to manage task lifecycle. The implementation will include robust input validation, state checking (e.g., preventing completion of an already completed task), and clear user feedback on success or failure.\n\n### 2. Proposed Implementation Details\n- **Commands:** Introduce two new subcommands in `commander.js`:\n  - `complete <id>`: Locates the task by its unique ID.\n  - `delete <id>`: Locates the task by its unique ID.\n- **Logic Flow (Read-Modify-Write):**\n  1. Both commands will leverage existing file I/O",
+  "usage": {
+    "inputTokens": 302,
+    "outputTokens": 157
+  },
+  "durationMs": 17427
+}

@@ -1,0 +1,481 @@
+config,runId,step,stepNumber,stepTitle,modelRole,provider,requestedModel,actualMode,inputTokens,outputTokens,totalTokens,cost,estimatedCostUsd,invariantCount,missingInvariants,contradictions,driftScore,durationMs,qualityScore,judgeScoreStddev,testsPassed,success
+baseline-openai,1,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,591,704,0.0091475,0.0091475,0,0,0,0,10870,10,,true,true
+baseline-openai,1,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,723,799,1522,0.0137925,0.0137925,1,0,0,0,14702,9.4,,true,true
+baseline-openai,1,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1549,870,2419,0.0169225,0.0169225,1,0,0,0,16206,10,,true,true
+baseline-openai,1,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2441,879,3320,0.0192875,0.0192875,5,0,0,0,14440,10,,true,true
+baseline-openai,1,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,3340,887,4227,0.021655,0.021655,5,0,0,0,16258,10,,true,true
+baseline-openai,1,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,4246,870,5116,0.023665,0.023665,5,0,0,0,16041,10,,true,true
+baseline-openai,1,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,5133,833,5966,0.0253275,0.0253275,5,0,0,0,15620,9.4,,true,true
+baseline-openai,1,8,8,Automated tests,flagship,openai,gpt-5.4,live,5986,880,6866,0.028165,0.028165,5,0,0,0,15984,9.4,,true,true
+baseline-openai,1,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6886,900,7786,0.030715,0.030715,6,0,0,0,14086,10,,true,true
+baseline-openai,1,10,10,Report export,flagship,openai,gpt-5.4,live,7806,900,8706,0.033015,0.033015,7,0,0,0,14576,10,,true,true
+baseline-openai,2,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,532,645,0.0082625,0.0082625,0,0,0,0,10222,10,,true,true
+baseline-openai,2,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,664,785,1449,0.013435,0.013435,2,0,0,0,14395,10,,true,true
+baseline-openai,2,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1476,839,2315,0.016275,0.016275,3,0,0,0,16539,10,,true,true
+baseline-openai,2,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2337,900,3237,0.0193425,0.0193425,3,0,0,0,16076,10,,true,true
+baseline-openai,2,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,3258,739,3997,0.01923,0.01923,3,0,0,0,14910,10,,true,true
+baseline-openai,2,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,4016,900,4916,0.02354,0.02354,3,0,0,0,14572,10,,true,true
+baseline-openai,2,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4934,805,5739,0.02441,0.02441,3,0,0,0,14456,10,,true,true
+baseline-openai,2,8,8,Automated tests,flagship,openai,gpt-5.4,live,5759,900,6659,0.0278975,0.0278975,3,0,0,0,15661,9.3,,true,true
+baseline-openai,2,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6681,839,7520,0.0292875,0.0292875,3,0,0,0,15341,10,,true,true
+baseline-openai,2,10,10,Report export,flagship,openai,gpt-5.4,live,7538,900,8438,0.032345,0.032345,6,0,0,0,15518,10,,true,true
+baseline-openai,3,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,495,608,0.0077075,0.0077075,0,0,0,0,10633,10,,true,true
+baseline-openai,3,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,627,679,1306,0.0117525,0.0117525,0,0,0,0,13602,10,,true,true
+baseline-openai,3,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1333,833,2166,0.0158275,0.0158275,0,0,0,0,14579,10,,true,true
+baseline-openai,3,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2188,777,2965,0.017125,0.017125,1,0,0,0,14503,10,,true,true
+baseline-openai,3,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,2985,680,3665,0.0176625,0.0176625,1,0,0,0,15731,8.9,,true,true
+baseline-openai,3,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3684,851,4535,0.021975,0.021975,1,0,0,0,17470,10,,true,true
+baseline-openai,3,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4552,828,5380,0.0238,0.0238,1,0,0,0,17979,9.4,,true,true
+baseline-openai,3,8,8,Automated tests,flagship,openai,gpt-5.4,live,5400,791,6191,0.025365,0.025365,2,0,0,0,14840,9.4,,true,true
+baseline-openai,3,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6211,900,7111,0.0290275,0.0290275,3,0,0,0,14774,9.4,,true,true
+baseline-openai,3,10,10,Report export,flagship,openai,gpt-5.4,live,7131,766,7897,0.0293175,0.0293175,6,0,0,0,15418,10,,true,true
+baseline-openai,4,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,511,624,0.0079475,0.0079475,0,0,0,0,11787,10,,true,true
+baseline-openai,4,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,643,802,1445,0.0136375,0.0136375,4,0,0,0,14289,10,,true,true
+baseline-openai,4,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1472,841,2313,0.016295,0.016295,4,0,0,0,14757,10,,true,true
+baseline-openai,4,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2335,816,3151,0.0180775,0.0180775,5,0,0,0,13364,10,,true,true
+baseline-openai,4,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,3171,787,3958,0.0197325,0.0197325,5,0,0,0,16780,10,,true,true
+baseline-openai,4,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3977,863,4840,0.0228875,0.0228875,5,0,0,0,16011,10,,true,true
+baseline-openai,4,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4857,861,5718,0.0250575,0.0250575,5,0,0,0,18123,10,,true,true
+baseline-openai,4,8,8,Automated tests,flagship,openai,gpt-5.4,live,5738,900,6638,0.027845,0.027845,6,0,0,0,18272,9.4,,true,true
+baseline-openai,4,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6660,742,7402,0.02778,0.02778,7,0,0,0,13659,10,,true,true
+baseline-openai,4,10,10,Report export,flagship,openai,gpt-5.4,live,7420,900,8320,0.03205,0.03205,9,0,0,0,18121,10,,true,true
+baseline-openai,5,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,469,582,0.0073175,0.0073175,0,0,0,0,9105,10,,true,true
+baseline-openai,5,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,601,680,1281,0.0117025,0.0117025,2,0,0,0,13030,10,,true,true
+baseline-openai,5,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1308,751,2059,0.014535,0.014535,5,0,0,0,13895,10,,true,true
+baseline-openai,5,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2081,710,2791,0.0158525,0.0158525,5,0,0,0,12607,10,,true,true
+baseline-openai,5,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,2811,714,3525,0.0177375,0.0177375,5,0,0,0,14783,8.9,,true,true
+baseline-openai,5,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3544,832,4376,0.02134,0.02134,6,0,0,0,17918,10,,true,true
+baseline-openai,5,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4393,721,5114,0.0217975,0.0217975,6,0,0,0,13876,10,,true,true
+baseline-openai,5,8,8,Automated tests,flagship,openai,gpt-5.4,live,5134,827,5961,0.02524,0.02524,6,0,0,0,17213,9.4,,true,true
+baseline-openai,5,9,9,Refinement loop,flagship,openai,gpt-5.4,live,5981,867,6848,0.0279575,0.0279575,6,0,0,0,15286,9.4,,true,true
+baseline-openai,5,10,10,Report export,flagship,openai,gpt-5.4,live,6866,821,7687,0.02948,0.02948,7,0,0,0,16545,9.4,,true,true
+baseline-openai,6,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,534,647,0.0082925,0.0082925,0,0,0,0,10720,10,,true,true
+baseline-openai,6,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,666,707,1373,0.01227,0.01227,1,0,0,0,16288,9.4,,true,true
+baseline-openai,6,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1400,803,2203,0.015545,0.015545,1,0,0,0,17016,10,,true,true
+baseline-openai,6,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2225,882,3107,0.0187925,0.0187925,2,0,0,0,15645,10,,true,true
+baseline-openai,6,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,3127,775,3902,0.0194425,0.0194425,2,0,0,0,14440,8.9,,true,true
+baseline-openai,6,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3921,817,4738,0.0220575,0.0220575,2,0,0,0,14906,10,,true,true
+baseline-openai,6,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4755,784,5539,0.0236475,0.0236475,2,0,0,0,16493,10,,true,true
+baseline-openai,6,8,8,Automated tests,flagship,openai,gpt-5.4,live,5559,853,6412,0.0266925,0.0266925,2,0,0,0,16129,9.4,,true,true
+baseline-openai,6,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6432,861,7293,0.028995,0.028995,3,0,0,0,15476,9.4,,true,true
+baseline-openai,6,10,10,Report export,flagship,openai,gpt-5.4,live,7311,882,8193,0.0315075,0.0315075,6,0,0,0,15320,9.4,,true,true
+baseline-openai,7,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,540,653,0.0083825,0.0083825,0,0,0,0,10242,10,,true,true
+baseline-openai,7,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,672,710,1382,0.01233,0.01233,1,0,0,0,14902,10,,true,true
+baseline-openai,7,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1409,802,2211,0.0155525,0.0155525,1,0,0,0,13923,10,,true,true
+baseline-openai,7,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2233,709,2942,0.0162175,0.0162175,2,0,0,0,12835,10,,true,true
+baseline-openai,7,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,2962,780,3742,0.019105,0.019105,2,0,0,0,16710,10,,true,true
+baseline-openai,7,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3761,774,4535,0.0210125,0.0210125,2,0,0,0,18033,10,,true,true
+baseline-openai,7,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4552,900,5452,0.02488,0.02488,2,0,0,0,18477,10,,true,true
+baseline-openai,7,8,8,Automated tests,flagship,openai,gpt-5.4,live,5474,884,6358,0.026945,0.026945,3,0,0,0,18252,9.4,,true,true
+baseline-openai,7,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6378,663,7041,0.02589,0.02589,4,0,0,0,13464,10,,true,true
+baseline-openai,7,10,10,Report export,flagship,openai,gpt-5.4,live,7059,851,7910,0.0304125,0.0304125,4,0,0,0,17394,10,,true,true
+baseline-openai,8,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,459,572,0.0071675,0.0071675,0,0,0,0,11224,10,,true,true
+baseline-openai,8,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,591,741,1332,0.0125925,0.0125925,2,0,0,0,16574,10,,true,true
+baseline-openai,8,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,1359,672,2031,0.0134775,0.0134775,2,0,0,0,12936,10,,true,true
+baseline-openai,8,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,2053,759,2812,0.0165175,0.0165175,3,0,0,0,13358,10,,true,true
+baseline-openai,8,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,2832,796,3628,0.01902,0.01902,4,0,0,0,15535,9.4,,true,true
+baseline-openai,8,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,3647,778,4425,0.0207875,0.0207875,4,0,0,0,15947,10,,true,true
+baseline-openai,8,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,4442,835,5277,0.02363,0.02363,4,0,0,0,15254,10,,true,true
+baseline-openai,8,8,8,Automated tests,flagship,openai,gpt-5.4,live,5297,900,6197,0.0267425,0.0267425,4,0,0,0,17018,9.4,,true,true
+baseline-openai,8,9,9,Refinement loop,flagship,openai,gpt-5.4,live,6218,900,7118,0.029045,0.029045,4,0,0,0,18069,9.4,,true,true
+baseline-openai,8,10,10,Report export,flagship,openai,gpt-5.4,live,7138,849,7987,0.03058,0.03058,5,0,0,0,18919,10,,true,true
+openai-nano,1,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,525,638,0.0081575,0.0081575,0,0,0,0,10808,10,,true,true
+openai-nano,1,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1390,640,2030,0.0003255,0.0003255,0,0,0,0,6255,10,,true,true
+openai-nano,1,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,259,614,873,0.0098575,0.0098575,0,0,0,0,13340,10,,true,true
+openai-nano,1,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2117,640,2757,0.00036185,0.00036185,0,0,0,0,4873,10,,true,true
+openai-nano,1,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,276,561,837,0.009105,0.009105,0,0,0,0,11301,10,,true,true
+openai-nano,1,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2653,640,3293,0.00038865,0.00038865,0,0,0,0,5043,10,,true,true
+openai-nano,1,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,268,525,793,0.008545,0.008545,0,0,0,0,10304,10,,true,true
+openai-nano,1,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3164,640,3804,0.0004142,0.0004142,0,0,0,0,5135,10,,true,true
+openai-nano,1,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,271,471,742,0.0077425,0.0077425,0,0,0,0,10147,9.4,,true,true
+openai-nano,1,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,3601,640,4241,0.00043605,0.00043605,0,0,0,0,4959,9.4,,true,true
+openai-nano,1,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,268,468,736,0.00769,0.00769,0,0,0,0,8858,10,,true,true
+openai-nano,1,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4085,640,4725,0.00046025,0.00046025,0,0,0,0,7227,10,,true,true
+openai-nano,1,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,262,533,795,0.00865,0.00865,0,0,0,0,10045,10,,true,true
+openai-nano,1,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,4700,640,5340,0.000491,0.000491,0,0,0,0,4472,10,,true,true
+openai-nano,1,8,8,Automated tests,flagship,openai,gpt-5.4,live,265,601,866,0.0096775,0.0096775,0,0,0,0,13196,9.4,,true,true
+openai-nano,1,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5389,640,6029,0.00052545,0.00052545,0,0,0,0,5050,9.4,,true,true
+openai-nano,1,9,9,Refinement loop,flagship,openai,gpt-5.4,live,280,423,703,0.007045,0.007045,0,0,0,0,9093,10,,true,true
+openai-nano,1,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,5654,640,6294,0.0005387,0.0005387,0,0,0,0,6232,10,,true,true
+openai-nano,1,10,10,Report export,flagship,openai,gpt-5.4,live,267,450,717,0.0074175,0.0074175,0,0,0,0,9042,9.4,,true,true
+openai-nano,1,10,10,Report export (gate),gate,openai,gpt-5-nano,live,6149,640,6789,0.00056345,0.00056345,0,0,0,0,4720,9.4,,true,true
+openai-nano,2,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,522,635,0.0081125,0.0081125,2,0,0,0,9928,10,,true,true
+openai-nano,2,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1407,640,2047,0.00032635,0.00032635,2,0,0,0,4464,10,,true,true
+openai-nano,2,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,299,694,993,0.0111575,0.0111575,3,0,0,0,12127,9.4,,true,true
+openai-nano,2,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2304,640,2944,0.0003712,0.0003712,3,0,0,0,5265,9.4,,true,true
+openai-nano,2,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,318,724,1042,0.011655,0.011655,4,0,0,0,13842,10,,true,true
+openai-nano,2,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,3091,640,3731,0.00041055,0.00041055,4,0,0,0,4778,10,,true,true
+openai-nano,2,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,324,677,1001,0.010965,0.010965,7,0,0,0,12217,10,,true,true
+openai-nano,2,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3802,640,4442,0.0004461,0.0004461,7,0,0,0,4924,10,,true,true
+openai-nano,2,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,362,590,952,0.009755,0.009755,7,0,0,0,10806,9.4,,true,true
+openai-nano,2,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,4325,640,4965,0.00047225,0.00047225,7,0,0,0,4500,9.4,,true,true
+openai-nano,2,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,370,649,1019,0.01066,0.01066,10,0,0,0,11306,10,,true,true
+openai-nano,2,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,5092,640,5732,0.0005106,0.0005106,10,0,1,1,5078,10,,true,true
+openai-nano,2,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,405,769,1174,0.0125475,0.0125475,14,0,0,0,11482,10,,true,true
+openai-nano,2,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,6047,640,6687,0.00055835,0.00055835,14,0,1,1,6166,10,,true,true
+openai-nano,2,8,8,Automated tests,flagship,openai,gpt-5.4,live,559,611,1170,0.0105625,0.0105625,15,0,0,0,12676,8.9,,true,true
+openai-nano,2,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,6529,640,7169,0.00058245,0.00058245,15,0,1,1,5844,8.9,,true,true
+openai-nano,2,9,9,Refinement loop,flagship,openai,gpt-5.4,live,523,607,1130,0.0104125,0.0104125,16,0,0,0,11214,9.4,,true,true
+openai-nano,2,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,7164,640,7804,0.0006142,0.0006142,16,0,1,1,4915,9.4,,true,true
+openai-nano,2,10,10,Report export,flagship,openai,gpt-5.4,live,532,523,1055,0.009175,0.009175,18,0,0,0,9224,10,,true,true
+openai-nano,2,10,10,Report export (gate),gate,openai,gpt-5-nano,live,7650,640,8290,0.0006385,0.0006385,18,0,1,1,5922,10,,true,true
+openai-nano,3,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,394,507,0.0061925,0.0061925,1,0,0,0,7201,10,,true,true
+openai-nano,3,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1154,640,1794,0.0003137,0.0003137,1,0,0,0,5174,10,,true,true
+openai-nano,3,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,300,618,918,0.01002,0.01002,2,0,0,0,14177,10,,true,true
+openai-nano,3,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2027,640,2667,0.00035735,0.00035735,2,0,0,0,5405,10,,true,true
+openai-nano,3,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,308,610,918,0.00992,0.00992,4,0,0,0,12702,10,,true,true
+openai-nano,3,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2681,640,3321,0.00039005,0.00039005,4,0,0,0,4765,10,,true,true
+openai-nano,3,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,349,621,970,0.0101875,0.0101875,7,0,0,0,11000,10,,true,true
+openai-nano,3,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3370,640,4010,0.0004245,0.0004245,7,0,1,1,5292,10,,true,true
+openai-nano,3,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,372,533,905,0.008925,0.008925,9,0,0,0,12161,9.4,,true,true
+openai-nano,3,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,3870,640,4510,0.0004495,0.0004495,9,0,1,1,5665,9.4,,true,true
+openai-nano,3,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,405,637,1042,0.0105675,0.0105675,13,0,0,0,11124,10,,true,true
+openai-nano,3,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4692,640,5332,0.0004906,0.0004906,13,0,1,1,6385,10,,true,true
+openai-nano,3,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,454,607,1061,0.01024,0.01024,16,0,0,0,12783,10,,true,true
+openai-nano,3,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,5321,640,5961,0.00052205,0.00052205,16,0,1,1,5305,10,,true,true
+openai-nano,3,8,8,Automated tests,flagship,openai,gpt-5.4,live,493,613,1106,0.0104275,0.0104275,18,0,0,0,11905,10,,true,true
+openai-nano,3,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5998,640,6638,0.0005559,0.0005559,18,0,1,1,6603,10,,true,true
+openai-nano,3,9,9,Refinement loop,flagship,openai,gpt-5.4,live,537,639,1176,0.0109275,0.0109275,21,0,0,0,11360,10,,true,true
+openai-nano,3,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,6743,640,7383,0.00059315,0.00059315,21,0,1,1,5782,10,,true,true
+openai-nano,3,10,10,Report export,flagship,openai,gpt-5.4,live,594,583,1177,0.01023,0.01023,23,0,0,0,10949,9.4,,true,true
+openai-nano,3,10,10,Report export (gate),gate,openai,gpt-5-nano,live,7306,640,7946,0.0006213,0.0006213,23,0,1,1,5678,9.4,,true,true
+openai-nano,4,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,694,807,0.0106925,0.0106925,0,0,0,0,12997,10,,true,true
+openai-nano,4,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1728,640,2368,0.0003424,0.0003424,0,0,0,0,6000,10,,true,true
+openai-nano,4,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,288,584,872,0.00948,0.00948,1,0,0,0,9794,9.4,,true,true
+openai-nano,4,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2239,640,2879,0.00036795,0.00036795,1,0,0,0,5283,9.4,,true,true
+openai-nano,4,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,295,641,936,0.0103525,0.0103525,1,0,0,0,10704,10,,true,true
+openai-nano,4,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2964,640,3604,0.0004042,0.0004042,1,0,0,0,8056,10,,true,true
+openai-nano,4,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,282,513,795,0.0084,0.0084,4,0,0,0,10535,10,,true,true
+openai-nano,4,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3410,640,4050,0.0004265,0.0004265,4,0,0,0,7302,10,,true,true
+openai-nano,4,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,314,563,877,0.00923,0.00923,7,0,0,0,10538,10,,true,true
+openai-nano,4,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,4091,640,4731,0.00046055,0.00046055,7,0,0,0,6009,10,,true,true
+openai-nano,4,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,366,606,972,0.010005,0.010005,9,0,0,0,10686,10,,true,true
+openai-nano,4,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4787,640,5427,0.00049535,0.00049535,9,0,0,0,5820,10,,true,true
+openai-nano,4,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,377,900,1277,0.0144425,0.0144425,17,0,0,0,13851,9.3,,true,true
+openai-nano,4,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,6101,640,6741,0.00056105,0.00056105,17,0,1,1,6043,9.3,,true,true
+openai-nano,4,8,8,Automated tests,flagship,openai,gpt-5.4,live,530,485,1015,0.0086,0.0086,19,0,0,0,11615,9.4,,true,true
+openai-nano,4,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,6217,640,6857,0.00056685,0.00056685,19,0,1,1,5686,9.4,,true,true
+openai-nano,4,9,9,Refinement loop,flagship,openai,gpt-5.4,live,498,497,995,0.0087,0.0087,22,0,0,0,8607,9.4,,true,true
+openai-nano,4,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,6797,640,7437,0.00059585,0.00059585,22,0,1,1,5065,9.4,,true,true
+openai-nano,4,10,10,Report export,flagship,openai,gpt-5.4,live,543,653,1196,0.0111525,0.0111525,24,0,0,0,12585,10,,true,true
+openai-nano,4,10,10,Report export (gate),gate,openai,gpt-5-nano,live,7647,640,8287,0.00063835,0.00063835,24,0,1,1,5250,10,,true,true
+openai-nano,5,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,508,621,0.0079025,0.0079025,0,0,0,0,11488,10,,true,true
+openai-nano,5,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1356,640,1996,0.0003238,0.0003238,0,0,0,0,5307,10,,true,true
+openai-nano,5,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,270,656,926,0.010515,0.010515,1,0,0,0,11974,9.4,,true,true
+openai-nano,5,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2197,640,2837,0.00036585,0.00036585,1,0,0,0,5050,9.4,,true,true
+openai-nano,5,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,288,690,978,0.01107,0.01107,1,0,0,0,12050,10,,true,true
+openai-nano,5,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2948,640,3588,0.0004034,0.0004034,1,0,0,0,5046,10,,true,true
+openai-nano,5,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,273,666,939,0.0106725,0.0106725,3,0,0,0,12811,10,,true,true
+openai-nano,5,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3642,640,4282,0.0004381,0.0004381,3,0,0,0,4660,10,,true,true
+openai-nano,5,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,317,534,851,0.0088025,0.0088025,4,0,0,0,12807,9.4,,true,true
+openai-nano,5,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,4074,640,4714,0.0004597,0.0004597,4,0,0,0,6161,9.4,,true,true
+openai-nano,5,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,314,476,790,0.007925,0.007925,5,0,0,0,8465,10,,true,true
+openai-nano,5,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4530,640,5170,0.0004825,0.0004825,5,0,0,0,7893,10,,true,true
+openai-nano,5,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,329,507,836,0.0084275,0.0084275,7,0,0,0,9224,10,,true,true
+openai-nano,5,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,5119,640,5759,0.00051195,0.00051195,7,0,0,0,4979,10,,true,true
+openai-nano,5,8,8,Automated tests,flagship,openai,gpt-5.4,live,358,612,970,0.010075,0.010075,7,0,0,0,12833,8.9,,true,true
+openai-nano,5,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5856,640,6496,0.0005488,0.0005488,7,0,0,0,5244,8.9,,true,true
+openai-nano,5,9,9,Refinement loop,flagship,openai,gpt-5.4,live,364,476,840,0.00805,0.00805,8,0,0,0,8047,10,,true,true
+openai-nano,5,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,6248,640,6888,0.0005684,0.0005684,8,0,0,0,4901,10,,true,true
+openai-nano,5,10,10,Report export,flagship,openai,gpt-5.4,live,392,506,898,0.00857,0.00857,8,0,0,0,9644,9.4,,true,true
+openai-nano,5,10,10,Report export (gate),gate,openai,gpt-5-nano,live,6802,640,7442,0.0005961,0.0005961,8,0,0,0,5384,9.4,,true,true
+openai-nano,6,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,476,589,0.0074225,0.0074225,0,0,0,0,8789,10,,true,true
+openai-nano,6,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1292,640,1932,0.0003206,0.0003206,0,0,0,0,5146,10,,true,true
+openai-nano,6,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,262,666,928,0.010645,0.010645,1,0,0,0,11242,9.4,,true,true
+openai-nano,6,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2185,640,2825,0.00036525,0.00036525,1,0,0,0,4410,9.4,,true,true
+openai-nano,6,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,302,670,972,0.010805,0.010805,1,0,0,0,11518,9.4,,true,true
+openai-nano,6,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2886,640,3526,0.0004003,0.0004003,1,0,0,0,5376,9.4,,true,true
+openai-nano,6,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,280,601,881,0.009715,0.009715,6,0,0,0,12383,10,,true,true
+openai-nano,6,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3519,640,4159,0.00043195,0.00043195,6,0,0,0,5614,10,,true,true
+openai-nano,6,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,342,502,844,0.008385,0.008385,7,0,0,0,9510,9.4,,true,true
+openai-nano,6,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,3952,640,4592,0.0004536,0.0004536,7,0,0,0,4507,9.4,,true,true
+openai-nano,6,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,351,552,903,0.0091575,0.0091575,11,0,0,0,9942,10,,true,true
+openai-nano,6,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4609,640,5249,0.00048645,0.00048645,11,0,0,0,5121,10,,true,true
+openai-nano,6,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,388,407,795,0.007075,0.007075,14,0,0,0,6999,8.3,,true,true
+openai-nano,6,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,4924,640,5564,0.0005022,0.0005022,14,0,0,0,5385,8.3,,true,true
+openai-nano,6,8,8,Automated tests,flagship,openai,gpt-5.4,live,414,584,998,0.009795,0.009795,18,0,0,0,11649,8.9,,true,true
+openai-nano,6,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5746,640,6386,0.0005433,0.0005433,18,0,0,0,4456,8.9,,true,true
+openai-nano,6,9,9,Refinement loop,flagship,openai,gpt-5.4,live,463,568,1031,0.0096775,0.0096775,19,0,0,0,10706,10,,true,true
+openai-nano,6,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,6349,640,6989,0.00057345,0.00057345,19,0,0,0,4728,10,,true,true
+openai-nano,6,10,10,Report export,flagship,openai,gpt-5.4,live,495,618,1113,0.0105075,0.0105075,26,0,0,0,12942,10,,true,true
+openai-nano,6,10,10,Report export (gate),gate,openai,gpt-5-nano,live,7122,640,7762,0.0006121,0.0006121,26,0,0,0,4356,10,,true,true
+openai-nano,7,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,527,640,0.0081875,0.0081875,0,0,0,0,9657,10,,true,true
+openai-nano,7,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1394,640,2034,0.0003257,0.0003257,0,0,0,0,5407,10,,true,true
+openai-nano,7,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,274,686,960,0.010975,0.010975,0,0,0,0,12964,9.4,,true,true
+openai-nano,7,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,2263,640,2903,0.00036915,0.00036915,0,0,0,0,3928,9.4,,true,true
+openai-nano,7,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,287,624,911,0.0100775,0.0100775,0,0,0,0,12181,10,,true,true
+openai-nano,7,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2853,640,3493,0.00039865,0.00039865,0,0,0,0,4859,10,,true,true
+openai-nano,7,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,278,538,816,0.008765,0.008765,0,0,0,0,10956,10,,true,true
+openai-nano,7,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3327,640,3967,0.00042235,0.00042235,0,0,0,0,4266,10,,true,true
+openai-nano,7,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,273,420,693,0.0069825,0.0069825,0,0,0,0,9482,8.9,,true,true
+openai-nano,7,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,3649,640,4289,0.00043845,0.00043845,0,0,0,0,6687,8.9,,true,true
+openai-nano,7,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,271,654,925,0.0104875,0.0104875,0,0,0,0,11430,10,,true,true
+openai-nano,7,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4557,640,5197,0.00048385,0.00048385,0,0,0,0,7242,10,,true,true
+openai-nano,7,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,267,659,926,0.0105525,0.0105525,4,0,0,0,11106,7.8,,true,true
+openai-nano,7,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,5292,640,5932,0.0005206,0.0005206,4,0,0,0,4540,7.8,,true,true
+openai-nano,7,8,8,Automated tests,flagship,openai,gpt-5.4,live,382,574,956,0.009565,0.009565,4,0,0,0,11920,9.4,,true,true
+openai-nano,7,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5801,640,6441,0.00054605,0.00054605,4,0,0,0,4578,9.4,,true,true
+openai-nano,7,9,9,Refinement loop,flagship,openai,gpt-5.4,live,323,736,1059,0.0118475,0.0118475,5,0,0,0,14632,10,,true,true
+openai-nano,7,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,6726,640,7366,0.0005923,0.0005923,5,0,1,1,4897,10,,true,true
+openai-nano,7,10,10,Report export,flagship,openai,gpt-5.4,live,328,459,787,0.007705,0.007705,6,0,0,0,8733,9.4,,true,true
+openai-nano,7,10,10,Report export (gate),gate,openai,gpt-5-nano,live,6937,640,7577,0.00060285,0.00060285,6,0,1,1,5808,9.4,,true,true
+openai-nano,8,1,1,CLI skeleton + argument parsing,flagship,openai,gpt-5.4,live,113,515,628,0.0080075,0.0080075,0,0,0,0,11078,10,,true,true
+openai-nano,8,1,1,CLI skeleton + argument parsing (gate),gate,openai,gpt-5-nano,live,1370,640,2010,0.0003245,0.0003245,0,0,0,0,4878,10,,true,true
+openai-nano,8,2,2,Task data model + JSON persistence,flagship,openai,gpt-5.4,live,266,483,749,0.00791,0.00791,1,0,0,0,9465,9.4,,true,true
+openai-nano,8,2,2,Task data model + JSON persistence (gate),gate,openai,gpt-5-nano,live,1860,640,2500,0.000349,0.000349,1,0,0,0,5073,9.4,,true,true
+openai-nano,8,3,3,"List, filter, and view tasks",flagship,openai,gpt-5.4,live,270,712,982,0.011355,0.011355,1,0,0,0,13816,10,,true,true
+openai-nano,8,3,3,"List, filter, and view tasks (gate)",gate,openai,gpt-5-nano,live,2827,640,3467,0.00039735,0.00039735,1,0,0,0,4328,10,,true,true
+openai-nano,8,4,4,Complete/delete commands + validation,flagship,openai,gpt-5.4,live,261,532,793,0.0086325,0.0086325,1,0,0,0,13436,10,,true,true
+openai-nano,8,4,4,Complete/delete commands + validation (gate),gate,openai,gpt-5-nano,live,3201,640,3841,0.00041605,0.00041605,1,0,0,0,5161,10,,true,true
+openai-nano,8,5,5,Gate summarizer integration,flagship,openai,gpt-5.4,live,257,499,756,0.0081275,0.0081275,3,0,0,0,10573,9.4,,true,true
+openai-nano,8,5,5,Gate summarizer integration (gate),gate,openai,gpt-5-nano,live,3726,640,4366,0.0004423,0.0004423,3,0,0,0,4776,9.4,,true,true
+openai-nano,8,6,6,AI-assisted decomposition,flagship,openai,gpt-5.4,live,300,446,746,0.00744,0.00744,4,0,0,0,7963,9.4,,true,true
+openai-nano,8,6,6,AI-assisted decomposition (gate),gate,openai,gpt-5-nano,live,4151,640,4791,0.00046355,0.00046355,4,0,0,0,4515,9.4,,true,true
+openai-nano,8,7,7,Code snippet generator,flagship,openai,gpt-5.4,live,312,511,823,0.008445,0.008445,4,0,0,0,10047,10,,true,true
+openai-nano,8,7,7,Code snippet generator (gate),gate,openai,gpt-5-nano,live,4744,640,5384,0.0004932,0.0004932,4,0,0,0,5648,10,,true,true
+openai-nano,8,8,8,Automated tests,flagship,openai,gpt-5.4,live,300,507,807,0.008355,0.008355,6,0,0,0,10903,8.9,,true,true
+openai-nano,8,8,8,Automated tests (gate),gate,openai,gpt-5-nano,live,5288,640,5928,0.0005204,0.0005204,6,0,0,0,7680,8.9,,true,true
+openai-nano,8,9,9,Refinement loop,flagship,openai,gpt-5.4,live,339,504,843,0.0084075,0.0084075,10,0,0,0,10669,10,,true,true
+openai-nano,8,9,9,Refinement loop (gate),gate,openai,gpt-5-nano,live,5883,640,6523,0.00055015,0.00055015,10,0,0,0,4291,10,,true,true
+openai-nano,8,10,10,Report export,flagship,openai,gpt-5.4,live,418,543,961,0.00919,0.00919,11,0,0,0,12976,9.4,,true,true
+openai-nano,8,10,10,Report export (gate),gate,openai,gpt-5-nano,live,6496,640,7136,0.0005808,0.0005808,11,0,0,0,4866,9.4,,true,true
+baseline-grok,1,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,642,1430,0.00839,0.00839,0,0,0,0,28280,10,,true,true
+baseline-grok,1,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1453,752,2205,0.0111525,0.0111525,0,0,0,0,26828,10,,true,true
+baseline-grok,1,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2236,900,3136,0.01459,0.01459,1,0,0,0,29886,10,,true,true
+baseline-grok,1,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,3163,900,4063,0.0169075,0.0169075,6,0,0,0,25909,10,,true,true
+baseline-grok,1,5,5,Gate summarizer integration,flagship,xai,grok-4,live,4088,900,4988,0.01922,0.01922,9,0,0,0,38148,9.4,,true,true
+baseline-grok,1,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,5012,900,5912,0.02153,0.02153,9,0,0,0,40733,10,,true,true
+baseline-grok,1,7,7,Code snippet generator,flagship,xai,grok-4,live,5934,900,6834,0.023835,0.023835,9,0,0,0,25854,10,,true,true
+baseline-grok,1,8,8,Automated tests,flagship,xai,grok-4,live,6859,849,7708,0.0256375,0.0256375,10,0,0,0,37715,9.4,,true,true
+baseline-grok,1,9,9,Refinement loop,flagship,xai,grok-4,live,7732,900,8632,0.02833,0.02833,11,0,0,0,34794,10,,true,true
+baseline-grok,1,10,10,Report export,flagship,xai,grok-4,live,8655,900,9555,0.0306375,0.0306375,11,0,0,0,30930,10,,true,true
+baseline-grok,2,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,505,1293,0.00702,0.00702,0,0,0,0,27236,10,,true,true
+baseline-grok,2,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1316,605,1921,0.00934,0.00934,0,0,0,0,23122,10,,true,true
+baseline-grok,2,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1952,665,2617,0.01153,0.01153,0,0,0,0,25837,10,,true,true
+baseline-grok,2,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,2643,610,3253,0.0127075,0.0127075,0,0,0,0,26276,10,,true,true
+baseline-grok,2,5,5,Gate summarizer integration,flagship,xai,grok-4,live,3277,580,3857,0.0139925,0.0139925,0,0,0,0,22642,9.4,,true,true
+baseline-grok,2,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,3880,689,4569,0.01659,0.01659,0,0,0,0,54015,10,,true,true
+baseline-grok,2,7,7,Code snippet generator,flagship,xai,grok-4,live,4590,672,5262,0.018195,0.018195,0,0,0,0,25281,10,,true,true
+baseline-grok,2,8,8,Automated tests,flagship,xai,grok-4,live,5286,681,5967,0.020025,0.020025,0,0,0,0,29034,9.4,,true,true
+baseline-grok,2,9,9,Refinement loop,flagship,xai,grok-4,live,5991,720,6711,0.0221775,0.0221775,0,0,0,0,33922,10,,true,true
+baseline-grok,2,10,10,Report export,flagship,xai,grok-4,live,6733,668,7401,0.0235125,0.0235125,0,0,0,0,24595,10,,true,true
+baseline-grok,3,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,500,1288,0.00697,0.00697,0,0,0,0,20300,10,,true,true
+baseline-grok,3,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1311,584,1895,0.0091175,0.0091175,0,0,0,0,22752,10,,true,true
+baseline-grok,3,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1927,604,2531,0.0108575,0.0108575,0,0,0,0,22627,10,,true,true
+baseline-grok,3,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,2557,624,3181,0.0126325,0.0126325,0,0,0,0,24974,10,,true,true
+baseline-grok,3,5,5,Gate summarizer integration,flagship,xai,grok-4,live,3205,664,3869,0.0146525,0.0146525,0,0,0,0,24384,9.4,,true,true
+baseline-grok,3,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,3892,684,4576,0.01657,0.01657,0,0,0,0,36907,10,,true,true
+baseline-grok,3,7,7,Code snippet generator,flagship,xai,grok-4,live,4597,680,5277,0.0182925,0.0182925,0,0,0,0,25323,9.4,,true,true
+baseline-grok,3,8,8,Automated tests,flagship,xai,grok-4,live,5301,680,5981,0.0200525,0.0200525,0,0,0,0,24461,9.4,,true,true
+baseline-grok,3,9,9,Refinement loop,flagship,xai,grok-4,live,6005,662,6667,0.0216325,0.0216325,0,0,0,0,26046,10,,true,true
+baseline-grok,3,10,10,Report export,flagship,xai,grok-4,live,6689,644,7333,0.0231625,0.0231625,0,0,0,0,22279,9.4,,true,true
+baseline-grok,4,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,581,1369,0.00778,0.00778,1,0,0,0,22171,10,,true,true
+baseline-grok,4,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1392,600,1992,0.00948,0.00948,1,0,0,0,20853,10,,true,true
+baseline-grok,4,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2023,731,2754,0.0123675,0.0123675,2,0,0,0,22768,10,,true,true
+baseline-grok,4,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,2780,607,3387,0.01302,0.01302,2,0,0,0,20528,10,,true,true
+baseline-grok,4,5,5,Gate summarizer integration,flagship,xai,grok-4,live,3411,662,4073,0.0151475,0.0151475,2,0,0,0,26582,9.4,,true,true
+baseline-grok,4,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,4096,658,4754,0.01682,0.01682,2,0,0,0,43329,10,,true,true
+baseline-grok,4,7,7,Code snippet generator,flagship,xai,grok-4,live,4775,683,5458,0.0187675,0.0187675,2,0,0,0,29303,9.4,,true,true
+baseline-grok,4,8,8,Automated tests,flagship,xai,grok-4,live,5482,687,6169,0.020575,0.020575,2,0,0,0,22823,9.4,,true,true
+baseline-grok,4,9,9,Refinement loop,flagship,xai,grok-4,live,6193,730,6923,0.0227825,0.0227825,2,0,0,0,30476,10,,true,true
+baseline-grok,4,10,10,Report export,flagship,xai,grok-4,live,6945,731,7676,0.0246725,0.0246725,2,0,0,0,27807,10,,true,true
+baseline-grok,5,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,600,1388,0.00797,0.00797,0,0,0,0,24495,10,,true,true
+baseline-grok,5,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1411,686,2097,0.0103875,0.0103875,1,0,0,0,27333,10,,true,true
+baseline-grok,5,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2128,721,2849,0.01253,0.01253,2,0,0,0,25476,10,,true,true
+baseline-grok,5,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,2875,668,3543,0.0138675,0.0138675,4,0,0,0,20038,10,,true,true
+baseline-grok,5,5,5,Gate summarizer integration,flagship,xai,grok-4,live,3567,746,4313,0.0163775,0.0163775,4,0,0,0,23674,9.4,,true,true
+baseline-grok,5,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,4336,769,5105,0.01853,0.01853,4,0,0,0,29280,10,,true,true
+baseline-grok,5,7,7,Code snippet generator,flagship,xai,grok-4,live,5126,739,5865,0.020205,0.020205,4,0,0,0,25527,10,,true,true
+baseline-grok,5,8,8,Automated tests,flagship,xai,grok-4,live,5889,862,6751,0.0233425,0.0233425,5,0,0,0,33102,9.4,,true,true
+baseline-grok,5,9,9,Refinement loop,flagship,xai,grok-4,live,6775,782,7557,0.0247575,0.0247575,6,0,0,0,32106,10,,true,true
+baseline-grok,5,10,10,Report export,flagship,xai,grok-4,live,7579,832,8411,0.0272675,0.0272675,6,0,0,0,25668,10,,true,true
+baseline-grok,6,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,574,1362,0.00771,0.00771,0,0,0,0,19940,10,,true,true
+baseline-grok,6,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1385,678,2063,0.0102425,0.0102425,1,0,0,0,21184,10,,true,true
+baseline-grok,6,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2094,821,2915,0.013445,0.013445,3,0,0,0,26439,10,,true,true
+baseline-grok,6,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,2941,803,3744,0.0153825,0.0153825,7,0,0,0,26924,10,,true,true
+baseline-grok,6,5,5,Gate summarizer integration,flagship,xai,grok-4,live,3768,791,4559,0.01733,0.01733,9,0,0,0,72365,9.4,,true,true
+baseline-grok,6,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,4582,900,5482,0.020455,0.020455,11,0,0,0,44446,9.8,,true,true
+baseline-grok,6,7,7,Code snippet generator,flagship,xai,grok-4,live,5503,900,6403,0.0227575,0.0227575,11,0,0,0,28275,9.4,,true,true
+baseline-grok,6,8,8,Automated tests,flagship,xai,grok-4,live,6428,900,7328,0.02507,0.02507,12,0,0,0,36911,9.4,,true,true
+baseline-grok,6,9,9,Refinement loop,flagship,xai,grok-4,live,7353,900,8253,0.0273825,0.0273825,15,0,0,0,36095,10,,true,true
+baseline-grok,6,10,10,Report export,flagship,xai,grok-4,live,8276,874,9150,0.02943,0.02943,15,0,0,0,28498,10,,true,true
+baseline-grok,7,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,609,1397,0.00806,0.00806,0,0,0,0,26398,10,,true,true
+baseline-grok,7,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1420,825,2245,0.0118,0.0118,0,0,0,0,22441,10,,true,true
+baseline-grok,7,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2276,900,3176,0.01469,0.01469,4,0,0,0,26304,9.8,,true,true
+baseline-grok,7,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,3203,900,4103,0.0170075,0.0170075,7,0,0,0,25298,9.8,,true,true
+baseline-grok,7,5,5,Gate summarizer integration,flagship,xai,grok-4,live,4128,900,5028,0.01932,0.01932,8,0,0,0,28201,9.3,,true,true
+baseline-grok,7,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,5052,900,5952,0.02163,0.02163,8,0,0,0,39110,9.8,,true,true
+baseline-grok,7,7,7,Code snippet generator,flagship,xai,grok-4,live,5974,898,6872,0.023915,0.023915,8,0,0,0,23504,10,,true,true
+baseline-grok,7,8,8,Automated tests,flagship,xai,grok-4,live,6896,900,7796,0.02624,0.02624,10,0,0,0,33708,9.4,,true,true
+baseline-grok,7,9,9,Refinement loop,flagship,xai,grok-4,live,7821,887,8708,0.0284225,0.0284225,10,0,0,0,29313,10,,true,true
+baseline-grok,7,10,10,Report export,flagship,xai,grok-4,live,8730,892,9622,0.030745,0.030745,11,0,0,0,28528,10,,true,true
+baseline-grok,8,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,641,1429,0.00838,0.00838,0,0,0,0,25396,10,,true,true
+baseline-grok,8,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,1452,785,2237,0.01148,0.01148,0,0,0,0,26011,10,,true,true
+baseline-grok,8,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,2268,900,3168,0.01467,0.01467,1,0,0,0,32760,10,,true,true
+baseline-grok,8,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,3195,900,4095,0.0169875,0.0169875,3,0,0,0,25325,9.8,,true,true
+baseline-grok,8,5,5,Gate summarizer integration,flagship,xai,grok-4,live,4120,900,5020,0.0193,0.0193,5,0,0,0,30126,9.3,,true,true
+baseline-grok,8,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,5044,900,5944,0.02161,0.02161,7,0,0,0,33748,9.8,,true,true
+baseline-grok,8,7,7,Code snippet generator,flagship,xai,grok-4,live,5966,899,6865,0.023905,0.023905,7,0,0,0,27374,9.4,,true,true
+baseline-grok,8,8,8,Automated tests,flagship,xai,grok-4,live,6889,883,7772,0.0260525,0.0260525,9,0,0,0,39006,9.4,,true,true
+baseline-grok,8,9,9,Refinement loop,flagship,xai,grok-4,live,7796,900,8696,0.02849,0.02849,9,0,0,0,30065,9.8,,true,true
+baseline-grok,8,10,10,Report export,flagship,xai,grok-4,live,8719,900,9619,0.0307975,0.0307975,12,0,0,0,27117,10,,true,true
+grok,1,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,526,1314,0.00723,0.00723,0,0,0,0,18874,10,,true,true
+grok,1,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1587,169,1756,0.0004864,0.0004864,0,0,0,0,17660,10,,true,true
+grok,1,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,932,550,1482,0.00783,0.00783,0,0,0,0,21879,10,,true,true
+grok,1,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2189,227,2416,0.0006648,0.0006648,0,0,0,0,16323,10,,true,true
+grok,1,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,970,525,1495,0.007675,0.007675,0,0,0,0,23379,10,,true,true
+grok,1,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2720,344,3064,0.000888,0.000888,0,0,0,0,19704,10,,true,true
+grok,1,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1038,619,1657,0.008785,0.008785,0,0,0,0,23948,10,,true,true
+grok,1,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3459,378,3837,0.0010698,0.0010698,0,0,0,0,22681,10,,true,true
+grok,1,5,5,Gate summarizer integration,flagship,xai,grok-4,live,1038,629,1667,0.008885,0.008885,0,0,0,0,26022,10,,true,true
+grok,1,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4122,326,4448,0.0011504,0.0011504,0,0,0,0,24924,10,,true,true
+grok,1,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,991,585,1576,0.0083275,0.0083275,0,0,0,0,22096,10,,true,true
+grok,1,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,4686,357,5043,0.0012942,0.0012942,0,0,0,0,22890,10,,true,true
+grok,1,7,7,Code snippet generator,flagship,xai,grok-4,live,1038,825,1863,0.010845,0.010845,3,0,0,0,31122,9.4,,true,true
+grok,1,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5810,440,6250,0.001602,0.001602,3,0,0,0,21515,9.4,,true,true
+grok,1,8,8,Automated tests,flagship,xai,grok-4,live,1155,443,1598,0.0073175,0.0073175,3,0,0,0,19906,9.4,,true,true
+grok,1,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,5895,349,6244,0.001528,0.001528,3,0,0,0,22478,9.4,,true,true
+grok,1,9,9,Refinement loop,flagship,xai,grok-4,live,1079,475,1554,0.0074475,0.0074475,3,0,0,0,20970,9.4,,true,true
+grok,1,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6426,258,6684,0.0015432,0.0015432,3,0,0,0,22557,9.4,,true,true
+grok,1,10,10,Report export,flagship,xai,grok-4,live,985,465,1450,0.0071125,0.0071125,3,0,0,0,20689,9.4,,true,true
+grok,1,10,10,Report export (gate),gate,xai,grok-code-fast,live,6903,376,7279,0.0017566,0.0017566,3,0,0,0,22405,9.4,,true,true
+grok,2,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,496,1284,0.00693,0.00693,0,0,0,0,18272,10,,true,true
+grok,2,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1527,272,1799,0.0005774,0.0005774,0,0,0,0,16914,10,,true,true
+grok,2,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,978,465,1443,0.007095,0.007095,0,0,0,0,19155,10,,true,true
+grok,2,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,1989,279,2268,0.0006768,0.0006768,0,0,0,0,18347,10,,true,true
+grok,2,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,998,557,1555,0.008065,0.008065,0,0,0,0,22593,10,,true,true
+grok,2,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2669,333,3002,0.0008668,0.0008668,0,0,0,0,21035,10,,true,true
+grok,2,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1026,714,1740,0.009705,0.009705,3,0,0,0,25908,10,,true,true
+grok,2,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3597,253,3850,0.0009724,0.0009724,3,0,0,0,20402,10,,true,true
+grok,2,5,5,Gate summarizer integration,flagship,xai,grok-4,live,998,552,1550,0.008015,0.008015,3,0,0,0,20845,10,,true,true
+grok,2,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4011,311,4322,0.0011132,0.0011132,3,0,0,0,17716,10,,true,true
+grok,2,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1042,586,1628,0.008465,0.008465,3,0,0,0,23581,8.3,,true,true
+grok,2,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,4654,424,5078,0.0013548,0.0013548,3,0,0,0,20365,8.3,,true,true
+grok,2,7,7,Code snippet generator,flagship,xai,grok-4,live,1148,694,1842,0.00981,0.00981,6,0,0,0,25520,8.3,,true,true
+grok,2,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5510,469,5979,0.001571,0.001571,6,0,0,0,21887,8.3,,true,true
+grok,2,8,8,Automated tests,flagship,xai,grok-4,live,1173,480,1653,0.0077325,0.0077325,6,0,0,0,19962,9.4,,true,true
+grok,2,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,5800,511,6311,0.001671,0.001671,6,0,0,0,20789,9.4,,true,true
+grok,2,9,9,Refinement loop,flagship,xai,grok-4,live,1216,738,1954,0.01042,0.01042,7,0,0,0,25831,8.9,,true,true
+grok,2,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6831,437,7268,0.0018032,0.0018032,7,0,0,0,20965,8.9,,true,true
+grok,2,10,10,Report export,flagship,xai,grok-4,live,1161,593,1754,0.0088325,0.0088325,7,0,0,0,20679,10,,true,true
+grok,2,10,10,Report export (gate),gate,xai,grok-code-fast,live,7301,342,7643,0.0018022,0.0018022,7,0,0,0,22752,10,,true,true
+grok,3,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,531,1319,0.00728,0.00728,0,0,0,0,19889,10,,true,true
+grok,3,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1597,143,1740,0.0004624,0.0004624,0,0,0,0,17178,10,,true,true
+grok,3,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,898,588,1486,0.008125,0.008125,0,0,0,0,21990,10,,true,true
+grok,3,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2270,337,2607,0.000791,0.000791,0,0,0,0,18583,10,,true,true
+grok,3,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1043,631,1674,0.0089175,0.0089175,0,0,0,0,23312,10,,true,true
+grok,3,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2975,487,3462,0.001082,0.001082,0,0,0,0,27959,10,,true,true
+grok,3,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1160,857,2017,0.01147,0.01147,9,0,0,0,24231,10,,true,true
+grok,3,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,4266,505,4771,0.0013582,0.0013582,9,0,0,0,30269,10,,true,true
+grok,3,5,5,Gate summarizer integration,flagship,xai,grok-4,live,1237,582,1819,0.0089125,0.0089125,11,0,0,0,25045,9.4,,true,true
+grok,3,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4623,475,5098,0.0013996,0.0013996,11,3,1,4,33587,9.4,,true,true
+grok,3,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1223,635,1858,0.0094075,0.0094075,12,0,0,0,21305,10,,true,true
+grok,3,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,5343,548,5891,0.0016166,0.0016166,12,3,1,4,23767,10,,true,true
+grok,3,7,7,Code snippet generator,flagship,xai,grok-4,live,1279,586,1865,0.0090575,0.0090575,12,0,0,0,19092,8.3,,true,true
+grok,3,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5901,468,6369,0.0016482,0.0016482,12,3,1,4,20101,8.3,,true,true
+grok,3,8,8,Automated tests,flagship,xai,grok-4,live,1201,675,1876,0.0097525,0.0097525,12,0,0,0,20331,9.4,,true,true
+grok,3,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,6689,528,7217,0.0018658,0.0018658,12,0,1,1,26359,9.4,,true,true
+grok,3,9,9,Refinement loop,flagship,xai,grok-4,live,1355,578,1933,0.0091675,0.0091675,12,0,0,0,22030,9.4,,true,true
+grok,3,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,7194,537,7731,0.0019758,0.0019758,12,3,1,4,33080,9.4,,true,true
+grok,3,10,10,Report export,flagship,xai,grok-4,live,1233,726,1959,0.0103425,0.0103425,12,0,0,0,25453,9.4,,true,true
+grok,3,10,10,Report export (gate),gate,xai,grok-code-fast,live,8090,650,8740,0.002268,0.002268,12,0,1,1,27884,9.4,,true,true
+grok,4,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,512,1300,0.00709,0.00709,0,0,0,0,18304,10,,true,true
+grok,4,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1559,157,1716,0.0004688,0.0004688,0,0,0,0,15646,10,,true,true
+grok,4,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,921,598,1519,0.0082825,0.0082825,0,0,0,0,20037,9.4,,true,true
+grok,4,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2271,321,2592,0.0007752,0.0007752,0,0,0,0,19719,9.4,,true,true
+grok,4,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1013,657,1670,0.0091025,0.0091025,0,0,0,0,22765,10,,true,true
+grok,4,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,3018,228,3246,0.0008316,0.0008316,0,0,0,0,15786,10,,true,true
+grok,4,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,939,529,1468,0.0076375,0.0076375,0,0,0,0,19742,10,,true,true
+grok,4,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3445,271,3716,0.00096,0.00096,0,0,0,0,18655,10,,true,true
+grok,4,5,5,Gate summarizer integration,flagship,xai,grok-4,live,998,443,1441,0.006925,0.006925,0,0,0,0,16511,9.4,,true,true
+grok,4,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,3826,422,4248,0.0011872,0.0011872,0,0,0,0,21653,9.4,,true,true
+grok,4,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1100,509,1609,0.00784,0.00784,0,0,0,0,17705,8.9,,true,true
+grok,4,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,4424,368,4792,0.0012528,0.0012528,0,0,0,0,18271,8.9,,true,true
+grok,4,7,7,Code snippet generator,flagship,xai,grok-4,live,1055,900,1955,0.0116375,0.0116375,0,0,0,0,24352,8.3,,true,true
+grok,4,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5737,477,6214,0.0016244,0.0016244,0,0,0,0,23659,8.3,,true,true
+grok,4,8,8,Automated tests,flagship,xai,grok-4,live,1157,428,1585,0.0071725,0.0071725,0,0,0,0,17032,8.9,,true,true
+grok,4,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,5717,618,6335,0.0017614,0.0017614,0,0,0,0,24188,8.9,,true,true
+grok,4,9,9,Refinement loop,flagship,xai,grok-4,live,1308,478,1786,0.00805,0.00805,0,0,0,0,21360,10,,true,true
+grok,4,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6269,643,6912,0.0018968,0.0018968,0,0,0,0,24944,10,,true,true
+grok,4,10,10,Report export,flagship,xai,grok-4,live,1319,539,1858,0.0086875,0.0086875,0,0,0,0,19540,10,,true,true
+grok,4,10,10,Report export (gate),gate,xai,grok-code-fast,live,6891,495,7386,0.0018732,0.0018732,0,0,0,0,21614,10,,true,true
+grok,5,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,566,1354,0.00763,0.00763,0,0,0,0,21167,10,,true,true
+grok,5,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1667,142,1809,0.0004754,0.0004754,0,0,0,0,12627,10,,true,true
+grok,5,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,896,628,1524,0.00852,0.00852,0,0,0,0,23434,10,,true,true
+grok,5,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2385,276,2661,0.000753,0.000753,0,0,0,0,16903,10,,true,true
+grok,5,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,978,518,1496,0.007625,0.007625,0,0,0,0,19081,10,,true,true
+grok,5,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2824,325,3149,0.0008898,0.0008898,0,0,0,0,16157,10,,true,true
+grok,5,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1013,625,1638,0.0087825,0.0087825,0,0,0,0,18964,10,,true,true
+grok,5,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3582,315,3897,0.0010314,0.0010314,0,0,0,0,20619,10,,true,true
+grok,5,5,5,Gate summarizer integration,flagship,xai,grok-4,live,992,594,1586,0.00842,0.00842,1,0,0,0,21492,10,,true,true
+grok,5,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4182,307,4489,0.0011434,0.0011434,1,0,1,1,18036,10,,true,true
+grok,5,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1052,696,1748,0.00959,0.00959,1,0,0,0,22000,10,,true,true
+grok,5,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,5003,191,5194,0.0011916,0.0011916,1,0,1,1,23897,10,,true,true
+grok,5,7,7,Code snippet generator,flagship,xai,grok-4,live,966,642,1608,0.008835,0.008835,2,0,0,0,19755,8.3,,true,true
+grok,5,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5620,367,5987,0.001491,0.001491,2,0,1,1,17481,8.3,,true,true
+grok,5,8,8,Automated tests,flagship,xai,grok-4,live,1116,455,1571,0.00734,0.00734,3,0,0,0,16988,8.9,,true,true
+grok,5,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,5919,450,6369,0.0016338,0.0016338,3,0,1,1,13371,8.9,,true,true
+grok,5,9,9,Refinement loop,flagship,xai,grok-4,live,1153,427,1580,0.0071525,0.0071525,3,0,0,0,15748,9.4,,true,true
+grok,5,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6342,532,6874,0.0018004,0.0018004,3,0,1,1,17073,9.4,,true,true
+grok,5,10,10,Report export,flagship,xai,grok-4,live,1226,508,1734,0.008145,0.008145,7,0,0,0,18765,10,,true,true
+grok,5,10,10,Report export (gate),gate,xai,grok-code-fast,live,6987,322,7309,0.0017194,0.0017194,7,0,2,2,19887,10,,true,true
+grok,6,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,661,1449,0.00858,0.00858,0,0,0,0,19483,10,,true,true
+grok,6,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1857,229,2086,0.0006004,0.0006004,0,0,0,0,13467,10,,true,true
+grok,6,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,937,697,1634,0.0093125,0.0093125,0,0,0,0,20857,10,,true,true
+grok,6,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2618,368,2986,0.0008916,0.0008916,0,0,0,0,16640,10,,true,true
+grok,6,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1060,513,1573,0.00778,0.00778,3,0,0,0,16165,10,,true,true
+grok,6,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,3014,358,3372,0.0009608,0.0009608,3,3,0,3,17121,10,,true,true
+grok,6,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1099,678,1777,0.0095275,0.0095275,3,0,0,0,22314,10,,true,true
+grok,6,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3883,377,4260,0.0011536,0.0011536,3,3,0,3,22610,10,,true,true
+grok,6,5,5,Gate summarizer integration,flagship,xai,grok-4,live,1098,571,1669,0.008455,0.008455,3,0,0,0,21185,9.4,,true,true
+grok,6,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4371,522,4893,0.0013962,0.0013962,3,3,0,3,26419,9.4,,true,true
+grok,6,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1206,602,1808,0.009035,0.009035,3,0,0,0,22773,9.4,,true,true
+grok,6,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,5027,507,5534,0.0015124,0.0015124,3,3,0,3,21550,9.4,,true,true
+grok,6,7,7,Code snippet generator,flagship,xai,grok-4,live,1186,759,1945,0.010555,0.010555,4,0,0,0,28971,8.3,,true,true
+grok,6,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5978,405,6383,0.0016006,0.0016006,4,3,0,3,23667,8.3,,true,true
+grok,6,8,8,Automated tests,flagship,xai,grok-4,live,1119,615,1734,0.0089475,0.0089475,4,0,0,0,24402,9.4,,true,true
+grok,6,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,6473,496,6969,0.0017906,0.0017906,4,3,0,3,19635,9.4,,true,true
+grok,6,9,9,Refinement loop,flagship,xai,grok-4,live,1186,558,1744,0.008545,0.008545,4,0,0,0,24740,10,,true,true
+grok,6,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6998,514,7512,0.0019136,0.0019136,4,3,0,3,21115,10,,true,true
+grok,6,10,10,Report export,flagship,xai,grok-4,live,1177,697,1874,0.0099125,0.0099125,4,0,0,0,26805,10,,true,true
+grok,6,10,10,Report export (gate),gate,xai,grok-code-fast,live,7856,387,8243,0.0019582,0.0019582,4,4,0,4,22897,10,,true,true
+grok,7,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,536,1324,0.00733,0.00733,0,0,0,0,20327,10,,true,true
+grok,7,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1607,204,1811,0.0005254,0.0005254,0,0,0,0,13020,10,,true,true
+grok,7,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,947,538,1485,0.0077475,0.0077475,1,0,0,0,22190,10,,true,true
+grok,7,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2188,254,2442,0.0006916,0.0006916,1,0,1,1,19837,10,,true,true
+grok,7,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1016,586,1602,0.0084,0.0084,1,0,0,0,24234,10,,true,true
+grok,7,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2853,291,3144,0.0008616,0.0008616,1,0,1,1,16680,10,,true,true
+grok,7,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1024,680,1704,0.00936,0.00936,1,0,0,0,28159,10,,true,true
+grok,7,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3653,292,3945,0.0010226,0.0010226,1,0,1,1,16291,10,,true,true
+grok,7,5,5,Gate summarizer integration,flagship,xai,grok-4,live,1027,526,1553,0.0078275,0.0078275,1,0,0,0,21689,9.4,,true,true
+grok,7,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4049,229,4278,0.0010388,0.0010388,1,0,1,1,32875,9.4,,true,true
+grok,7,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,985,777,1762,0.0102325,0.0102325,5,0,0,0,24347,10,,true,true
+grok,7,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,5137,380,5517,0.0014074,0.0014074,5,0,1,1,20387,10,,true,true
+grok,7,7,7,Code snippet generator,flagship,xai,grok-4,live,1128,619,1747,0.00901,0.00901,5,0,0,0,25459,8.3,,true,true
+grok,7,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5617,289,5906,0.0014124,0.0014124,5,0,1,1,18890,8.3,,true,true
+grok,7,8,8,Automated tests,flagship,xai,grok-4,live,1029,552,1581,0.0080925,0.0080925,5,0,0,0,24521,8.9,,true,true
+grok,7,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,6127,412,6539,0.0016374,0.0016374,5,0,1,1,20083,8.9,,true,true
+grok,7,9,9,Refinement loop,flagship,xai,grok-4,live,1119,443,1562,0.0072275,0.0072275,5,0,0,0,18374,9.4,,true,true
+grok,7,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6485,367,6852,0.001664,0.001664,5,0,1,1,20830,9.4,,true,true
+grok,7,10,10,Report export,flagship,xai,grok-4,live,1051,536,1587,0.0079875,0.0079875,5,0,0,0,23121,10,,true,true
+grok,7,10,10,Report export (gate),gate,xai,grok-code-fast,live,7136,362,7498,0.0017892,0.0017892,5,0,1,1,20373,10,,true,true
+grok,8,1,1,CLI skeleton + argument parsing,flagship,xai,grok-4,live,788,534,1322,0.00731,0.00731,0,0,0,0,20185,10,,true,true
+grok,8,1,1,CLI skeleton + argument parsing (gate),gate,xai,grok-code-fast,live,1603,232,1835,0.0005526,0.0005526,0,0,0,0,17108,10,,true,true
+grok,8,2,2,Task data model + JSON persistence,flagship,xai,grok-4,live,975,569,1544,0.0081275,0.0081275,0,0,0,0,21339,9.4,,true,true
+grok,8,2,2,Task data model + JSON persistence (gate),gate,xai,grok-code-fast,live,2235,346,2581,0.000793,0.000793,0,0,0,0,17930,9.4,,true,true
+grok,8,3,3,"List, filter, and view tasks",flagship,xai,grok-4,live,1043,596,1639,0.0085675,0.0085675,0,0,0,0,17681,10,,true,true
+grok,8,3,3,"List, filter, and view tasks (gate)",gate,xai,grok-code-fast,live,2889,436,3325,0.0010138,0.0010138,0,0,0,0,26527,10,,true,true
+grok,8,4,4,Complete/delete commands + validation,flagship,xai,grok-4,live,1099,628,1727,0.0090275,0.0090275,0,0,0,0,25727,10,,true,true
+grok,8,4,4,Complete/delete commands + validation (gate),gate,xai,grok-code-fast,live,3575,337,3912,0.001052,0.001052,0,0,0,0,20190,10,,true,true
+grok,8,5,5,Gate summarizer integration,flagship,xai,grok-4,live,1016,557,1573,0.00811,0.00811,0,0,0,0,24654,10,,true,true
+grok,8,5,5,Gate summarizer integration (gate),gate,xai,grok-code-fast,live,4085,420,4505,0.001237,0.001237,0,0,0,0,18979,10,,true,true
+grok,8,6,6,AI-assisted decomposition,flagship,xai,grok-4,live,1039,631,1670,0.0089075,0.0089075,0,0,0,0,22982,10,,true,true
+grok,8,6,6,AI-assisted decomposition (gate),gate,xai,grok-code-fast,live,4813,371,5184,0.0013336,0.0013336,0,0,0,0,22676,10,,true,true
+grok,8,7,7,Code snippet generator,flagship,xai,grok-4,live,1043,781,1824,0.0104175,0.0104175,2,0,0,0,26683,8.3,,true,true
+grok,8,7,7,Code snippet generator (gate),gate,xai,grok-code-fast,live,5793,341,6134,0.0014996,0.0014996,2,0,0,0,21108,8.3,,true,true
+grok,8,8,8,Automated tests,flagship,xai,grok-4,live,1038,358,1396,0.006175,0.006175,3,0,0,0,15483,9.4,,true,true
+grok,8,8,8,Automated tests (gate),gate,xai,grok-code-fast,live,5774,330,6104,0.0014848,0.0014848,3,0,0,0,23370,9.4,,true,true
+grok,8,9,9,Refinement loop,flagship,xai,grok-4,live,1063,432,1495,0.0069775,0.0069775,4,0,0,0,19403,10,,true,true
+grok,8,9,9,Refinement loop (gate),gate,xai,grok-code-fast,live,6335,314,6649,0.001581,0.001581,4,1,0,1,17931,10,,true,true
+grok,8,10,10,Report export,flagship,xai,grok-4,live,1050,495,1545,0.007575,0.007575,5,0,0,0,21773,10,,true,true
+grok,8,10,10,Report export (gate),gate,xai,grok-code-fast,live,6936,373,7309,0.0017602,0.0017602,5,1,0,1,23399,10,,true,true

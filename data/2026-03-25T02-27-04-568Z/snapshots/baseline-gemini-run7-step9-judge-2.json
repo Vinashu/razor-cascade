@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Refinement loop\nTask objective: Improve an existing task based on feedback and preserve iteration history.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To**: RazorCascade Team\n**From**: Senior Engineer\n**Subject**: TaskForge Implementation Update: Task Refinement Loop\n\n### 1. Goal\nImplement a `refine` command that allows a user to replace an existing high-level task with a set of more granular, actionable subtasks. This creates a refinement loop, improving task clarity while preserving the historical link between the original goal and its resulting subtasks.\n\n### 2. Proposed Implementation Details\n*   **New Command**: A `refine.ts` module will be created in `src/commands/` to define the `taskforge refine <task-id>` command.\n*   **Data Model Update**: The `Task` interface in `src/types.ts` will be updated to support task lineage:\n    *   A new optional `parentId: string` field will be added to link a subtask to its original parent.\n    *   A new status, `'refined'`, will be added to the `status` type. When a task is refined, its status will be changed to `'refined'`, effectively archiving it from active views.\n*   **Interactive Workflow**:\n    1.  The command will retrieve the task specified by `<task-id>\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 506,
+    "outputTokens": 14
+  },
+  "durationMs": 455
+}
