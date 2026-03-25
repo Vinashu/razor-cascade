@@ -94,6 +94,9 @@ This sequence was fixed to eliminate task-ordering variance across runs.
 
 We tested seven configurations across three providers:
 
+> Table 1: Study configurations across providers, models, and pric-
+ing
+
 | Config | Provider | Mode | Flagship | Gate | Flagship $/M (in/out) | Gate $/M (in/out) | Price Ratio (out) |
 |---|---|---|---|---|---|---|---|
 | baseline-openai | OpenAI | baseline | gpt-5.4 | — | $2.50 / $15.00 | — | — |
@@ -165,7 +168,10 @@ All runs were executed with `--snapshot` mode, writing the full prompt and respo
 
 All data come from live API calls executed on March 25, 2026. No mock or simulated data were used.
 
-> **[FIGURE 1: Mean Cost bar chart]** — Horizontal bar chart showing mean per-run cost (USD) for all seven configurations. Source: `experiments/2026-03-25T02-27-04-568Z/dashboard.html`, section "Mean Cost".
+![Figure01](figures/figure01.png)
+> Figure 1: Mean per-run cost (USD) across all seven configurations.
+
+> Table 2: Summary statistics across all seven configurations
 
 | Metric | baseline-openai | openai-mini | openai-nano | baseline-grok | grok | baseline-gemini | gemini |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -189,6 +195,9 @@ All data come from live API calls executed on March 25, 2026. No mock or simulat
 
 The most striking finding is that cost savings scale with the flagship-to-gate output price ratio:
 
+> Table 3: Output price ratio and cost savings by cascade configura-
+tion
+
 | Cascade | Output Price Ratio | Cost Savings | Significant? |
 |---|---:|---:|---|
 | openai-nano | 37.5× | 49.8% | Yes (p < 0.001) |
@@ -198,7 +207,9 @@ The most striking finding is that cost savings scale with the flagship-to-gate o
 
 When the gate is 10× or more cheaper than the flagship on output tokens, the cascade delivers 35–50% savings reliably. When the ratio drops to 4× (Gemini), the gate's own cost erodes almost all of the savings from reducing flagship input tokens. This is the **price ratio threshold**: below roughly 7–10×, same-provider cascading becomes economically marginal.
 
-> **[FIGURE 2: Iteration Cost Curve]** — Line chart showing mean cost per step (steps 1–10) for all seven configurations. Baseline lines climb steeply as conversation history grows; cascade lines stay flat. The Gemini baseline is already flat and low, visually explaining why cascading provides no benefit. Source: `experiments/2026-03-25T02-27-04-568Z/dashboard.html`, section "Iteration Cost Curve".
+![Figure02](figures/figure02.png)
+> Figure 2: Iteration cost curve (steps 1–10) for all seven configurations. Baselines rise with context
+growth, while cascades remain comparatively flat
 
 The iteration cost curve (Figure 2) makes the mechanism visible. Baseline costs rise with each step as the conversation history grows—baseline-grok reaches $0.040/step by step 10, baseline-openai reaches $0.033/step—while all cascade configurations stay flat at $0.010–$0.015/step regardless of step number. This flatness is the core value proposition: the gate summary is a fixed-size input (~400–600 tokens) that does not grow with the conversation.
 
@@ -211,6 +222,8 @@ The Gemini cascade (4× ratio) cut cost from $0.067 to $0.062, a mere 8.1% savin
 ### 4.3 Two Gate Tiers: The OpenAI Mini vs. Nano Tradeoff
 
 Testing two gate models for the same flagship reveals a clean cost–drift tradeoff:
+
+> Table 4: OpenAI gate-tier comparison: cost, quality, drift, and token usage.
 
 | Metric | openai-mini (gpt-5-mini) | openai-nano (gpt-5-nano) |
 |---|---:|---:|
@@ -227,6 +240,8 @@ The nano gate saves an additional 14 percentage points on cost versus the mini g
 ### 4.4 Token Counts
 
 Cascade runs consistently use *more* total tokens than baseline runs:
+
+> Table 5: Token increase versus baseline for each cascade configuration
 
 | Cascade | Token Increase |
 |---|---:|
@@ -249,11 +264,15 @@ For the **xAI cascade**, quality dropped from 9.00 to 8.64 (corrected p = 0.004,
 
 For the **Gemini cascade**, quality *improved* from 7.86 to 8.27, but this difference is not statistically significant (corrected p = 0.374). The positive direction is noteworthy: the gate summary appears to provide better-structured context to the flagship than the raw conversation history does, at least for gemini-2.5-pro. This may be because gemini-2.5-pro's baseline quality was the lowest in the study (mean 7.86), with high variance (CI [7.34, 8.38]). A structured summary may compensate for the model's weaker ability to extract relevant context from long histories.
 
-> **[FIGURE 3: Quality bar chart]** — Horizontal bar chart showing mean quality score (0–10) for all seven configurations. Note Gemini cascade scoring *above* its baseline. Source: `experiments/2026-03-25T02-27-04-568Z/dashboard.html`, section "Quality".
+![Figure03](figures/figure03.png)
+> Figure 3: Mean quality score (0–10) across all seven configurations, including Gemini cascade
+scoring above its baseline.
 
 ### 4.6 Drift
 
 Baselines showed zero drift across all three providers, as expected since they do not use a gate.
+
+> Table 6: Drift metrics across cascade configurations.
 
 | Cascade | Mean Drift | Mean Missing Invariants | Mean Contradictions |
 |---|---:|---:|---:|
@@ -264,7 +283,9 @@ Baselines showed zero drift across all three providers, as expected since they d
 
 The OpenAI cascades show substantially higher drift than xAI and Gemini. This is surprising: gpt-5-mini and gpt-5-nano lose more invariants per run (18–22 missing) than grok-code-fast (1.0) or gemini-2.5-flash (2.5). One explanation is that the OpenAI gate models produce more verbose summaries that parse correctly but omit previously established invariants, while the xAI and Gemini gates produce tighter summaries that preserve more of the invariant set. Another possibility is that the invariant extraction pipeline interacts differently with each model's output style.
 
-> **[FIGURE 4: Iteration Drift Curve]** — Line chart showing mean drift score per step (steps 1–10) for all seven configurations. All baselines are flat at zero. The grok and gemini cascades stay near zero throughout. The openai-mini and openai-nano curves accelerate sharply after step 6. Source: `experiments/2026-03-25T02-27-04-568Z/dashboard.html`, section "Iteration Drift Curve".
+![Figure04](figures/figure04.png)
+> Figure 4: Iteration drift curve (steps 1–10) for all seven configurations. Baselines remain at zero,
+while openai-mini and openai-nano increase after step 6.
 
 The iteration drift curve (Figure 4) reveals a pattern hidden by the aggregate means: **OpenAI gate drift accelerates in later steps**. For both openai-mini and openai-nano, drift stays moderate through steps 1–6 (scores 0–1.7), then spikes to 4.5–6.7 at steps 7–10. In contrast, grok and gemini cascades remain below 0.7 throughout all 10 steps. This late-stage acceleration suggests that the OpenAI gate models lose invariant fidelity as the conversation history grows longer—precisely when effective summarization matters most. The pattern is consistent with a hypothesis that gpt-5-mini and gpt-5-nano, while excellent at short-context tasks, struggle to extract stable facts from longer inputs, causing an accumulating loss of invariants that compounds over steps.
 
@@ -283,6 +304,8 @@ This suggests a practical rule: **if your flagship model already costs less than
 ### 4.8 Cross-Provider Observations
 
 After cascading, per-run costs across providers diverge rather than converge:
+
+> Table 7: Cross-provider post-cascade cost comparison.
 
 | Config | Mean Cost | Baseline Cost | Reduction |
 |---|---:|---:|---:|
@@ -398,51 +421,51 @@ The RazorCascade platform, all data, and all artifacts are published under the M
 
 ## References
 
-[1] S. Seligman, "The Token Economy: How AI Billing Shifted from Compute to Tokens," *AI Economics Quarterly*, vol. 4, no. 1, pp. 12–19, Jan. 2026.
+[1] “How Token Economics Could Define Success With AI,” Forbes Tech Council, Mar. 19, 2026.
 
-[2] J. Brockman, "Scaling and Pricing in the Age of Foundation Models," *OpenAI Technical Blog*, Dec. 2025. Available: https://openai.com/blog
+[2] OpenAI, “GPT-5.4 Technical Report & Pricing Overview,” OpenAI Technical Blog, Mar. 2026. Available: https://openai.com/blog 
 
-[3] OpenClaw Contributors, "OpenClaw: An Open-Source Framework for Autonomous 24/7 AI Agent Teams," 2026. Available: https://openclaw.ai
+[3] OpenClaw Contributors, “OpenClaw: An Open-Source Framework for Autonomous 24/7 AI Agent Teams,” 2026. Available: https://openclaw.ai
 
-[4] R. Vasquez, "The Hidden Token Tax: How Agentic Workflows Create Runaway API Bills," *Practical AI Engineering*, Feb. 2026.
+[4] N. Feith, “The Token Tax: Who Pays When AI Agents Run in Loops,” Medium, Mar. 2026. 
 
-[5] J. Huang, "NVIDIA GTC 2026 Keynote: The Age of AI Factories," NVIDIA, San Jose, CA, Mar. 16, 2026. Available: https://www.nvidia.com/gtc
+[5] J. Huang, “NVIDIA GTC 2026 Keynote: The Age of AI Factories,” NVIDIA, San Jose, CA, Mar. 16, 2026. Available: https://www.nvidia.com/gtc
 
-[6] L. Chen, M. Zaharia, and J. Zou, "FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance," arXiv:2305.05176, May 2023.
+[6] L. Chen, M. Zaharia, and J. Zou, “FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance,” arXiv:2305.05176, May 2023.
 
-[7] S. Kang, D. Kim, and J. Lee, "ACON: Adaptive Context Optimization for Long-Horizon Agents," arXiv:2510.00615, Oct. 2025.
+[7] M. Kang et al., “ACON: Optimizing Context Compression for Long-horizon LLM Agents,” arXiv:2510.00615, Oct. 2025. 
 
-[8] A. Verma, P. Singh, and R. Gupta, "Active Context Compression for Software Engineering Agents," arXiv:2601.07190, Jan. 2026.
+[8] N. Verma, “Active Context Compression: Autonomous Memory Management in LLM Agents,” arXiv:2601.07190, Jan. 2026. 
 
-[9] FlowMind Team, "FlowMind: Execute-Summarize Pipelines for Token-Efficient Agentic Workflows," arXiv:2602.11782, Feb. 2026.
+[9] Y. Liu et al., “FlowMind: Execute-Summarize for Structured Workflow Generation from LLM Reasoning,” arXiv:2602.11782, Feb. 2026.
 
-[10] M. Zhang, Y. Liu, and T. Chen, "A Survey on Dynamic Model Routing and Cascading for Cost-Efficient LLM Inference," arXiv:2603.04445, Mar. 2026.
+[10] Y. Moslem and J. D. Kelleher, “Dynamic Model Routing and Cascading for Efficient LLM Inference: A Survey,” arXiv:2603.04445, Feb. 2026.
 
-[11] OpenAI, "API Pricing," Mar. 2026. Available: https://openai.com/pricing; xAI, "Grok API Pricing," Mar. 2026. Available: https://x.ai/api; Google, "Gemini API Pricing," Mar. 2026. Available: https://ai.google.dev/pricing
+[11] OpenAI, “API Pricing,” Mar. 2026. Available: https://openai.com/pricing; xAI, “Grok API Pricing,” Mar. 2026. Available: https://x.ai/api; Google, “Gemini API Pricing,” Mar. 2026. Available: https://ai.google.dev/pricing
 
-[12] W. S. Jevons, *The Coal Question*, London: Macmillan, 1865. (For modern application to compute and AI, see also: T. Hicks, "Jevons Paradox and the AI Token Economy," *IEEE Spectrum*, Jan. 2026.)
+[12] W. S. Jevons, The Coal Question, London: Macmillan, 1865. (For modern application to compute and AI, see also: various 2026 discussions of Jevons Paradox in token economics, e.g., AEI “Algorithms, Compute, and the Rise of Tokenomics,” Feb. 2026.)
 
-[13] Anthropic, "Agentic Coding Trends Report 2026," Anthropic Research, Feb. 2026.
+[13] Anthropic, “2026 Agentic Coding Trends Report,” Anthropic Research, Feb. 2026.
 
-[14] Google DeepMind, "Active Context Engineering with Gemini ADK," Google AI Blog, Jan. 2026.
+[14] Google DeepMind, “Agent Development Kit (ADK) and Context Engineering with Gemini,” Google AI Blog, Jan. 2026. 
 
-[15] Anthropic, "Model Context Protocol: Donation to the Agentic AI Foundation," Dec. 2025. Available: https://www.anthropic.com/news
+[15] Anthropic, “Donating the Model Context Protocol and establishing the Agentic AI Foundation,” Dec. 9, 2025. Available: https://www.anthropic.com/news
 
-[16] J. Li, R. Tang, and W. X. Zhao, "Compressing Context for Enhanced Language Model Interaction," in *Proc. ACL*, 2024, pp. 1082–1094.
+[16] H. Jiang et al., “LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression,” in Findings of ACL 2024. 
 
-[17] H. Jiang, Q. Wu, and X. Lin, "LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models," in *Proc. EMNLP*, 2023, pp. 3452–3467.
+[17] H. Jiang, Q. Wu, and X. Lin, “LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models,” in Proc. EMNLP, 2023, pp. 3452–3467.
 
-[18] Orla Contributors, "Orla: A Multi-Agent Library for Cost-Efficient LLM Orchestration," arXiv:2603.13605, Mar. 2026.
+[18] R. Shahout et al., “Orla: A Library for Serving LLM-Based Multi-Agent Systems,” arXiv:2603.13605, Mar. 2026. 
 
-[19] McKinsey Global Institute, "The State of AI Adoption: What Developers Know and Don't Know," McKinsey Digital, Nov. 2025; IBM, "Understanding Context Windows in Large Language Models," IBM AI Education, 2025.
+[19] McKinsey Global Institute, “The State of AI in 2025: Agents, Innovation, and Transformation,” McKinsey Digital, Nov. 2025. 
 
-[20] DataCamp, "Context Engineering for LLMs: From Prompt Engineering to Context Architecture," DataCamp Tutorials, Jan. 2026.
+[20] DataCamp, “Context Engineering: A Guide With Examples,” DataCamp Tutorials, 2025/2026. 
 
 ---
 
 ## Appendix A: Experimental Artifacts
 
-All experiment data are stored in the `experiments/2026-03-25T02-27-04-568Z/` directory:
+All experiment data are stored in the `data/2026-03-25T02-27-04-568Z/` directory:
 
 - **steps.csv**: Per-step token counts, costs, quality scores, drift metrics, and latency for all 700 step executions.
 - **runs.csv**: Per-run aggregates for all 70 runs.
@@ -473,6 +496,8 @@ The platform falls back to deterministic mock clients if API keys are absent, so
 
 ## Appendix C: Per-Run Cost Data
 
+> Table 8: Per-run cost values (USD) for all configurations (10 runs each).
+
 | Config | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Run 6 | Run 7 | Run 8 | Run 9 | Run 10 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | baseline-openai | $0.215 | $0.212 | $0.207 | $0.201 | $0.211 | $0.225 | $0.204 | $0.199 | $0.211 | $0.214 |
@@ -484,6 +509,8 @@ The platform falls back to deterministic mock clients if API keys are absent, so
 | gemini | $0.058 | $0.064 | $0.060 | $0.062 | $0.065 | $0.058 | $0.060 | $0.059 | $0.065 | $0.065 |
 
 ## Appendix D: Changes from Preliminary Study
+
+> Table 9: Changes from preliminary study to this study design.
 
 | Aspect | Preliminary (Mar 18) | This Study (Mar 25) |
 |---|---|---|
