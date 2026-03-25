@@ -1,5 +1,11 @@
 # RazorCascade-Study
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Bun](https://img.shields.io/badge/Bun-%3E%3D1.2-black?logo=bun)](https://bun.sh)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#running-the-study)
+[![Providers](https://img.shields.io/badge/providers-OpenAI%20%7C%20Anthropic%20%7C%20xAI%20%7C%20Gemini-blueviolet)](#supported-providers-and-march-2026-pricing)
+
 RazorCascade is a reproducible TypeScript + Bun study scaffold for measuring whether same-provider model cascading reduces API cost during incremental software development without materially degrading quality. The repository ships with a working `TaskForge` CLI, provider adapters for OpenAI, Anthropic, and xAI, a gate summarizer, study runner, metrics pipeline, strengthened drift detection, and automated tests.
 
 ## Hypothesis
@@ -47,6 +53,9 @@ Using a cheaper same-provider gate model to summarize context before each flagsh
 ├── config.json
 ├── package.json
 ├── tsconfig.json
+├── docs/
+│   ├── paper.md          ← research paper write-up
+│   └── figures/
 ├── src/
 │   ├── contradictions.ts
 │   ├── gate.ts
@@ -355,6 +364,7 @@ The runner reports:
 
 ## Project Docs
 
+- [`docs/paper.md`](./docs/paper.md): the research paper write-up covering methodology, results, and analysis. The paper source lives in the `docs/` folder; figures go in `docs/figures/`.
 - [`METHODOLOGY.md`](./METHODOLOGY.md): experimental design, statistical choices, validity limits, and reproducibility notes.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): setup, test commands, study commands, provider extension notes, and code-style expectations.
 
