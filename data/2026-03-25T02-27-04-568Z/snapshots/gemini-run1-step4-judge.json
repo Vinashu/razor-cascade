@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Complete/delete commands + validation\nTask objective: Add complete/delete flows with good error handling and state validation.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**Subject: Implementation Update: Task Completion & Deletion**\n\n### 1. Goal\nImplement `cascade complete <id>` and `cascade delete <id>` commands to manage task lifecycle. The implementation will include robust input validation, state checking (e.g., preventing completion of an already completed task), and clear user feedback on success or failure.\n\n### 2. Proposed Implementation Details\n- **Commands:** Introduce two new subcommands in `commander.js`:\n  - `complete <id>`: Locates the task by its unique ID.\n  - `delete <id>`: Locates the task by its unique ID.\n- **Logic Flow (Read-Modify-Write):**\n  1. Both commands will leverage existing file I/O\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 4}\n```",
+  "usage": {
+    "inputTokens": 395,
+    "outputTokens": 14
+  },
+  "durationMs": 515
+}

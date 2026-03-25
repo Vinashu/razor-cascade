@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RazorCascade Dashboard</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f3ea;
+        --card: rgba(255, 255, 255, 0.86);
+        --ink: #14213d;
+        --muted: #5e6472;
+        --accent: #cc5803;
+        --accent-soft: #f4a259;
+        --quality: #2a9d8f;
+        --border: rgba(20, 33, 61, 0.12);
+        --shadow: 0 18px 40px rgba(20, 33, 61, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 48px 24px;
+        background:
+          radial-gradient(circle at top left, rgba(244, 162, 89, 0.28), transparent 38%),
+          radial-gradient(circle at bottom right, rgba(42, 157, 143, 0.2), transparent 36%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Segoe UI", "Aptos", sans-serif;
+      }
+
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .hero-copy {
+        flex: 1 1 420px;
+      }
+
+      .hero-copy p {
+        margin: 0;
+      }
+
+      .hero-meta {
+        flex: 0 1 320px;
+        display: grid;
+        gap: 10px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-meta p {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        letter-spacing: -0.04em;
+      }
+
+      p {
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .card {
+        padding: 20px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .bars {
+        display: grid;
+        gap: 14px;
+        margin-top: 26px;
+      }
+
+      .chart-wrap {
+        margin-top: 18px;
+      }
+
+      .chart-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .chart-note {
+        display: grid;
+        gap: 4px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(42, 157, 143, 0.18);
+        background: linear-gradient(135deg, rgba(42, 157, 143, 0.08), rgba(255, 255, 255, 0.7));
+      }
+
+      .chart-note strong {
+        font-size: 1rem;
+      }
+
+      .chart-note.stable {
+        border-color: rgba(42, 157, 143, 0.2);
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend i {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+
+      .label {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        font-weight: 600;
+      }
+
+      .bar-shell {
+        margin-top: 8px;
+        border-radius: 999px;
+        height: 14px;
+        overflow: hidden;
+        background: rgba(20, 33, 61, 0.08);
+      }
+
+      .bar {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+      }
+
+      .bar.tokens {
+        background: linear-gradient(90deg, #264653, #2a9d8f);
+      }
+
+      .bar.quality {
+        background: linear-gradient(90deg, #588157, #bcce98);
+      }
+
+      .bar.drift {
+        background: linear-gradient(90deg, #8f2d56, #d46a6a);
+      }
+
+      .drift-panel {
+        display: grid;
+        gap: 18px;
+      }
+
+      .drift-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+      }
+
+      .drift-stat {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .drift-stat h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .drift-stat p {
+        margin: 4px 0 0;
+        font-size: 0.92rem;
+      }
+
+      .drift-value {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .status-pill.stable {
+        background: rgba(42, 157, 143, 0.14);
+        color: #1f6f66;
+      }
+
+      .status-pill.good {
+        background: rgba(42, 157, 143, 0.14);
+        color: #1f6f66;
+      }
+
+      .status-pill.caution {
+        background: rgba(244, 162, 89, 0.18);
+        color: #9a5b00;
+      }
+
+      .status-pill.warning,
+      .status-pill.bad {
+        background: rgba(212, 106, 106, 0.15);
+        color: #8f2d56;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .stat-card {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .stat-card h3 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .stat-card p {
+        margin: 0;
+      }
+
+      .stat-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .stat-list span {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .stat-list strong {
+        color: var(--ink);
+      }
+
+      .metric-hint {
+        margin: 0;
+      }
+
+      .drift-row-meta {
+        margin-top: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 28px;
+      }
+
+      th, td {
+        padding: 12px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="hero-copy">
+          <h1>RazorCascade Dashboard</h1>
+          <p>Mean cost, drift, tokens, and quality by configuration.</p>
+        </div>
+        <div class="hero-meta">
+          <span class="status-pill stable">Live API Data</span>
+          <p>This dashboard reflects live provider API calls and includes the measured study artifacts from those runs.</p>
+        </div>
+      </header>
+      <section class="grid">
+        <article class="card">
+          <div class="label"><span>baseline-openai</span><span>0% cost savings</span></div>
+          <p>$0.2098 mean cost</p>
+          <p>0.00 mean drift</p>
+          <p>43,480 mean tokens</p>
+          <p>9.43 / 10 mean quality</p>
+          <p>95% cost CI: $0.2044 to $0.2153</p>
+          <div class="drift-row-meta">
+            <span class="status-pill stable">Reference configuration</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>openai-mini</span><span>35.41% cost savings</span></div>
+          <p>$0.1355 mean cost</p>
+          <p>2.69 mean drift</p>
+          <p>66,522 mean tokens</p>
+          <p>9.20 / 10 mean quality</p>
+          <p>95% cost CI: $0.1323 to $0.1387</p>
+          <div class="drift-row-meta">
+            <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>openai-nano</span><span>49.76% cost savings</span></div>
+          <p>$0.1054 mean cost</p>
+          <p>2.96 mean drift</p>
+          <p>73,849 mean tokens</p>
+          <p>9.16 / 10 mean quality</p>
+          <p>95% cost CI: $0.1022 to $0.1087</p>
+          <div class="drift-row-meta">
+            <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>baseline-grok</span><span>0% cost savings</span></div>
+          <p>$0.2589 mean cost</p>
+          <p>0.00 mean drift</p>
+          <p>52,518 mean tokens</p>
+          <p>9.00 / 10 mean quality</p>
+          <p>95% cost CI: $0.2348 to $0.2830</p>
+          <div class="drift-row-meta">
+            <span class="status-pill stable">Reference configuration</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>grok</span><span>48.4% cost savings</span></div>
+          <p>$0.1336 mean cost</p>
+          <p>0.32 mean drift</p>
+          <p>65,064 mean tokens</p>
+          <p>8.64 / 10 mean quality</p>
+          <p>95% cost CI: $0.1295 to $0.1376</p>
+          <div class="drift-row-meta">
+            <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>baseline-gemini</span><span>0% cost savings</span></div>
+          <p>$0.0670 mean cost</p>
+          <p>0.00 mean drift</p>
+          <p>24,119 mean tokens</p>
+          <p>7.86 / 10 mean quality</p>
+          <p>95% cost CI: $0.0590 to $0.0749</p>
+          <div class="drift-row-meta">
+            <span class="status-pill stable">Reference configuration</span>
+          </div>
+        </article><article class="card">
+          <div class="label"><span>gemini</span><span>8.06% cost savings</span></div>
+          <p>$0.0616 mean cost</p>
+          <p>0.46 mean drift</p>
+          <p>41,557 mean tokens</p>
+          <p>8.27 / 10 mean quality</p>
+          <p>95% cost CI: $0.0595 to $0.0637</p>
+          <div class="drift-row-meta">
+            <span class="status-pill bad">Cost difference is not statistically significant</span>
+          </div>
+        </article>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Statistical Analysis</h2>
+        <p>Matched baseline comparisons use Welch's t-test for unequal variances, Cohen's d for cost effect size, 95% confidence intervals around mean cost, and interpretation labels for significance and effect size.</p>
+        <div class="stat-grid">
+          <article class="stat-card">
+            <div>
+              <h3>baseline-openai</h3>
+              <p>This row is the baseline used for matched comparisons.</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill stable">Reference configuration</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.2044 to $0.2153</strong></span>
+              <span><span>Cost p-value</span><strong>n/a</strong></span>
+              <span><span>Token p-value</span><strong>n/a</strong></span>
+              <span><span>Quality p-value</span><strong>n/a</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>n/a</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>openai-mini</h3>
+              <p>Two-tailed Welch's t-test p = 0.0000 (significant); Cohen's d is -11.9410 (large).</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.1323 to $0.1387</strong></span>
+              <span><span>Cost p-value</span><strong>0.000000 (significant)</strong></span>
+              <span><span>Token p-value</span><strong>0.000000 (significant)</strong></span>
+              <span><span>Quality p-value</span><strong>0.012841 (significant)</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>-11.9410 (large)</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>openai-nano</h3>
+              <p>Two-tailed Welch's t-test p = 0.0000 (significant); Cohen's d is -16.7117 (large).</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.1022 to $0.1087</strong></span>
+              <span><span>Cost p-value</span><strong>0.000000 (significant)</strong></span>
+              <span><span>Token p-value</span><strong>0.000000 (significant)</strong></span>
+              <span><span>Quality p-value</span><strong>0.004791 (significant)</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>-16.7117 (large)</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>baseline-grok</h3>
+              <p>This row is the baseline used for matched comparisons.</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill stable">Reference configuration</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.2348 to $0.2830</strong></span>
+              <span><span>Cost p-value</span><strong>n/a</strong></span>
+              <span><span>Token p-value</span><strong>n/a</strong></span>
+              <span><span>Quality p-value</span><strong>n/a</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>n/a</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>grok</h3>
+              <p>Two-tailed Welch's t-test p = 0.0000 (significant); Cohen's d is -5.1945 (large).</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill good">Cost difference is statistically significant with a large effect</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.1295 to $0.1376</strong></span>
+              <span><span>Cost p-value</span><strong>0.000001 (significant)</strong></span>
+              <span><span>Token p-value</span><strong>0.000063 (significant)</strong></span>
+              <span><span>Quality p-value</span><strong>0.001252 (significant)</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>-5.1945 (large)</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>baseline-gemini</h3>
+              <p>This row is the baseline used for matched comparisons.</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill stable">Reference configuration</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.0590 to $0.0749</strong></span>
+              <span><span>Cost p-value</span><strong>n/a</strong></span>
+              <span><span>Token p-value</span><strong>n/a</strong></span>
+              <span><span>Quality p-value</span><strong>n/a</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>n/a</strong></span>
+            </div>
+          </article><article class="stat-card">
+            <div>
+              <h3>gemini</h3>
+              <p>Two-tailed Welch's t-test p = 0.1741 (not significant); Cohen's d is -0.6531 (medium).</p>
+            </div>
+            <div class="drift-row-meta">
+              <span class="status-pill bad">Cost difference is not statistically significant</span>
+            </div>
+            <div class="stat-list">
+              <span><span>Repeated runs</span><strong>10</strong></span>
+              <span><span>95% cost CI</span><strong>$0.0595 to $0.0637</strong></span>
+              <span><span>Cost p-value</span><strong>0.174104 (not significant)</strong></span>
+              <span><span>Token p-value</span><strong>0.000000 (significant)</strong></span>
+              <span><span>Quality p-value</span><strong>0.124817 (not significant)</strong></span>
+              <span><span>Cohen's d (cost)</span><strong>-0.6531 (medium)</strong></span>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Iteration Cost Curve</h2>
+        <div class="chart-wrap">
+    <div class="chart-meta">
+      <span>Mean spend per iteration across runs.</span>
+      <span>Zoomed range: 0.0000 to 0.0465 USD</span>
+    </div>
+    <svg viewBox="0 0 920 280" role="img" aria-label="Iteration cost curve">
+      <g>
+      <line x1="42" y1="42" x2="878" y2="42" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="46" text-anchor="end" fill="#5e6472" font-size="11">0.0465</text>
+    </g><g>
+      <line x1="42" y1="91" x2="878" y2="91" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="95" text-anchor="end" fill="#5e6472" font-size="11">0.0349</text>
+    </g><g>
+      <line x1="42" y1="140" x2="878" y2="140" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="144" text-anchor="end" fill="#5e6472" font-size="11">0.0233</text>
+    </g><g>
+      <line x1="42" y1="189" x2="878" y2="189" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="193" text-anchor="end" fill="#5e6472" font-size="11">0.0116</text>
+    </g><g>
+      <line x1="42" y1="238" x2="878" y2="238" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="242" text-anchor="end" fill="#5e6472" font-size="11">0.0000</text>
+    </g>
+      <line x1="42" y1="238" x2="878" y2="238" stroke="rgba(20, 33, 61, 0.18)" />
+      <line x1="42" y1="42" x2="42" y2="238" stroke="rgba(20, 33, 61, 0.18)" />
+      <g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-0" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#cc5803" />
+            <stop offset="100%" stop-color="#f4a259" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-0)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,219.9839052983001 134.88888888888889,218.82775848459664 227.77777777777777,223.38445107042364 320.66666666666663,218.25966711034408 413.55555555555554,211.21854348262536 506.44444444444446,204.91554272959348 599.3333333333333,200.93170088377306 692.2222222222223,204.3300986235651 785.1111111111111,199.74712423038835 878,196.40398567528038" />
+        <circle cx="42" cy="219.9839052983001" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 1: $0.0043</title>
+          </circle><circle cx="134.88888888888889" cy="218.82775848459664" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 2: $0.0046</title>
+          </circle><circle cx="227.77777777777777" cy="223.38445107042364" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 3: $0.0035</title>
+          </circle><circle cx="320.66666666666663" cy="218.25966711034408" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 4: $0.0047</title>
+          </circle><circle cx="413.55555555555554" cy="211.21854348262536" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 5: $0.0064</title>
+          </circle><circle cx="506.44444444444446" cy="204.91554272959348" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 6: $0.0079</title>
+          </circle><circle cx="599.3333333333333" cy="200.93170088377306" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 7: $0.0088</title>
+          </circle><circle cx="692.2222222222223" cy="204.3300986235651" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 8: $0.0080</title>
+          </circle><circle cx="785.1111111111111" cy="199.74712423038835" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 9: $0.0091</title>
+          </circle><circle cx="878" cy="196.40398567528038" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 10: $0.0099</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#264653" />
+            <stop offset="100%" stop-color="#2a9d8f" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-1)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,193.09348878795458 134.88888888888889,176.62060790243302 227.77777777777777,160.01505443173238 320.66666666666663,146.36746783631025 413.55555555555554,132.9005686664177 506.44444444444446,117.65585685512544 599.3333333333333,110.42330564021977 692.2222222222223,100.49813272039376 785.1111111111111,82.33083338987069 878,69.66881457006463" />
+        <circle cx="42" cy="193.09348878795458" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 1: $0.0107</title>
+          </circle><circle cx="134.88888888888889" cy="176.62060790243302" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 2: $0.0146</title>
+          </circle><circle cx="227.77777777777777" cy="160.01505443173238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 3: $0.0185</title>
+          </circle><circle cx="320.66666666666663" cy="146.36746783631025" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 4: $0.0218</title>
+          </circle><circle cx="413.55555555555554" cy="132.9005686664177" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 5: $0.0250</title>
+          </circle><circle cx="506.44444444444446" cy="117.65585685512544" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 6: $0.0286</title>
+          </circle><circle cx="599.3333333333333" cy="110.42330564021977" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 7: $0.0303</title>
+          </circle><circle cx="692.2222222222223" cy="100.49813272039376" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 8: $0.0326</title>
+          </circle><circle cx="785.1111111111111" cy="82.33083338987069" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 9: $0.0370</title>
+          </circle><circle cx="878" cy="69.66881457006463" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 10: $0.0400</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#8f2d56" />
+            <stop offset="100%" stop-color="#d46a6a" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-2)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,204.5138606836084 134.88888888888889,187.49596924182737 227.77777777777777,171.65949558235533 320.66666666666663,166.05355238002628 413.55555555555554,156.9865394357634 506.44444444444446,141.00265179275905 599.3333333333333,136.37385270984421 692.2222222222223,119.45178035735918 785.1111111111111,111.94630268151366 878,100.78706412811707" />
+        <circle cx="42" cy="204.5138606836084" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 1: $0.0080</title>
+          </circle><circle cx="134.88888888888889" cy="187.49596924182737" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 2: $0.0120</title>
+          </circle><circle cx="227.77777777777777" cy="171.65949558235533" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 3: $0.0158</title>
+          </circle><circle cx="320.66666666666663" cy="166.05355238002628" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 4: $0.0171</title>
+          </circle><circle cx="413.55555555555554" cy="156.9865394357634" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 5: $0.0192</title>
+          </circle><circle cx="506.44444444444446" cy="141.00265179275905" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 6: $0.0230</title>
+          </circle><circle cx="599.3333333333333" cy="136.37385270984421" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 7: $0.0241</title>
+          </circle><circle cx="692.2222222222223" cy="119.45178035735918" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 8: $0.0281</title>
+          </circle><circle cx="785.1111111111111" cy="111.94630268151366" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 9: $0.0299</title>
+          </circle><circle cx="878" cy="100.78706412811707" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 10: $0.0326</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-3" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#3a86ff" />
+            <stop offset="100%" stop-color="#7cc6fe" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-3)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,218.78130202064344 134.88888888888889,211.45061521098626 227.77777777777777,211.92364562500094 320.66666666666663,214.3540810306388 413.55555555555554,211.9985740469164 506.44444444444446,210.9915680662666 599.3333333333333,210.1382095747385 692.2222222222223,208.46299706587723 785.1111111111111,212.08769632953192 878,210.29657431133325" />
+        <circle cx="42" cy="218.78130202064344" r="4.5" fill="#7cc6fe">
+            <title>gemini step 1: $0.0046</title>
+          </circle><circle cx="134.88888888888889" cy="211.45061521098626" r="4.5" fill="#7cc6fe">
+            <title>gemini step 2: $0.0063</title>
+          </circle><circle cx="227.77777777777777" cy="211.92364562500094" r="4.5" fill="#7cc6fe">
+            <title>gemini step 3: $0.0062</title>
+          </circle><circle cx="320.66666666666663" cy="214.3540810306388" r="4.5" fill="#7cc6fe">
+            <title>gemini step 4: $0.0056</title>
+          </circle><circle cx="413.55555555555554" cy="211.9985740469164" r="4.5" fill="#7cc6fe">
+            <title>gemini step 5: $0.0062</title>
+          </circle><circle cx="506.44444444444446" cy="210.9915680662666" r="4.5" fill="#7cc6fe">
+            <title>gemini step 6: $0.0064</title>
+          </circle><circle cx="599.3333333333333" cy="210.1382095747385" r="4.5" fill="#7cc6fe">
+            <title>gemini step 7: $0.0066</title>
+          </circle><circle cx="692.2222222222223" cy="208.46299706587723" r="4.5" fill="#7cc6fe">
+            <title>gemini step 8: $0.0070</title>
+          </circle><circle cx="785.1111111111111" cy="212.08769632953192" r="4.5" fill="#7cc6fe">
+            <title>gemini step 9: $0.0062</title>
+          </circle><circle cx="878" cy="210.29657431133325" r="4.5" fill="#7cc6fe">
+            <title>gemini step 10: $0.0066</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-4" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#6a4c93" />
+            <stop offset="100%" stop-color="#b8a1d9" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-4)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,189.2221027524288 134.88888888888889,183.2984613564471 227.77777777777777,183.09414557527128 320.66666666666663,178.0467750156867 413.55555555555554,184.78940638589296 506.44444444444446,180.588697511156 599.3333333333333,176.11042916456816 692.2222222222223,184.5519435175629 785.1111111111111,181.4502690674809 878,176.34814474258428" />
+        <circle cx="42" cy="189.2221027524288" r="4.5" fill="#b8a1d9">
+            <title>grok step 1: $0.0116</title>
+          </circle><circle cx="134.88888888888889" cy="183.2984613564471" r="4.5" fill="#b8a1d9">
+            <title>grok step 2: $0.0130</title>
+          </circle><circle cx="227.77777777777777" cy="183.09414557527128" r="4.5" fill="#b8a1d9">
+            <title>grok step 3: $0.0130</title>
+          </circle><circle cx="320.66666666666663" cy="178.0467750156867" r="4.5" fill="#b8a1d9">
+            <title>grok step 4: $0.0142</title>
+          </circle><circle cx="413.55555555555554" cy="184.78940638589296" r="4.5" fill="#b8a1d9">
+            <title>grok step 5: $0.0126</title>
+          </circle><circle cx="506.44444444444446" cy="180.588697511156" r="4.5" fill="#b8a1d9">
+            <title>grok step 6: $0.0136</title>
+          </circle><circle cx="599.3333333333333" cy="176.11042916456816" r="4.5" fill="#b8a1d9">
+            <title>grok step 7: $0.0147</title>
+          </circle><circle cx="692.2222222222223" cy="184.5519435175629" r="4.5" fill="#b8a1d9">
+            <title>grok step 8: $0.0127</title>
+          </circle><circle cx="785.1111111111111" cy="181.4502690674809" r="4.5" fill="#b8a1d9">
+            <title>grok step 9: $0.0134</title>
+          </circle><circle cx="878" cy="176.34814474258428" r="4.5" fill="#b8a1d9">
+            <title>grok step 10: $0.0146</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-5" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#cc5803" />
+            <stop offset="100%" stop-color="#f4a259" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-5)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,192.8942693187809 134.88888888888889,182.53843697563548 227.77777777777777,178.62312157301707 320.66666666666663,177.17025146960353 413.55555555555554,185.17925319491445 506.44444444444446,181.66755727920753 599.3333333333333,179.3331094359897 692.2222222222223,177.02250053982314 785.1111111111111,178.70280936068653 878,176.08086213129968" />
+        <circle cx="42" cy="192.8942693187809" r="4.5" fill="#f4a259">
+            <title>openai-mini step 1: $0.0107</title>
+          </circle><circle cx="134.88888888888889" cy="182.53843697563548" r="4.5" fill="#f4a259">
+            <title>openai-mini step 2: $0.0132</title>
+          </circle><circle cx="227.77777777777777" cy="178.62312157301707" r="4.5" fill="#f4a259">
+            <title>openai-mini step 3: $0.0141</title>
+          </circle><circle cx="320.66666666666663" cy="177.17025146960353" r="4.5" fill="#f4a259">
+            <title>openai-mini step 4: $0.0144</title>
+          </circle><circle cx="413.55555555555554" cy="185.17925319491445" r="4.5" fill="#f4a259">
+            <title>openai-mini step 5: $0.0125</title>
+          </circle><circle cx="506.44444444444446" cy="181.66755727920753" r="4.5" fill="#f4a259">
+            <title>openai-mini step 6: $0.0134</title>
+          </circle><circle cx="599.3333333333333" cy="179.3331094359897" r="4.5" fill="#f4a259">
+            <title>openai-mini step 7: $0.0139</title>
+          </circle><circle cx="692.2222222222223" cy="177.02250053982314" r="4.5" fill="#f4a259">
+            <title>openai-mini step 8: $0.0145</title>
+          </circle><circle cx="785.1111111111111" cy="178.70280936068653" r="4.5" fill="#f4a259">
+            <title>openai-mini step 9: $0.0141</title>
+          </circle><circle cx="878" cy="176.08086213129968" r="4.5" fill="#f4a259">
+            <title>openai-mini step 10: $0.0147</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanCostUsd-6" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#264653" />
+            <stop offset="100%" stop-color="#2a9d8f" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanCostUsd-6)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,198.80401168202957 134.88888888888889,188.8512091698615 227.77777777777777,187.60294967559082 320.66666666666663,189.2926929914003 413.55555555555554,198.29564403024813 506.44444444444446,194.52786896600506 599.3333333333333,194.45892133999294 692.2222222222223,193.3586233669077 785.1111111111111,198.45742034760457 878,192.25154435058" />
+        <circle cx="42" cy="198.80401168202957" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 1: $0.0093</title>
+          </circle><circle cx="134.88888888888889" cy="188.8512091698615" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 2: $0.0117</title>
+          </circle><circle cx="227.77777777777777" cy="187.60294967559082" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 3: $0.0120</title>
+          </circle><circle cx="320.66666666666663" cy="189.2926929914003" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 4: $0.0116</title>
+          </circle><circle cx="413.55555555555554" cy="198.29564403024813" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 5: $0.0094</title>
+          </circle><circle cx="506.44444444444446" cy="194.52786896600506" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 6: $0.0103</title>
+          </circle><circle cx="599.3333333333333" cy="194.45892133999294" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 7: $0.0103</title>
+          </circle><circle cx="692.2222222222223" cy="193.3586233669077" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 8: $0.0106</title>
+          </circle><circle cx="785.1111111111111" cy="198.45742034760457" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 9: $0.0094</title>
+          </circle><circle cx="878" cy="192.25154435058" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 10: $0.0109</title>
+          </circle>
+      </g>
+      <text x="42" y="268" text-anchor="middle" fill="#5e6472" font-size="11">1</text><text x="134.88888888888889" y="268" text-anchor="middle" fill="#5e6472" font-size="11">2</text><text x="227.77777777777777" y="268" text-anchor="middle" fill="#5e6472" font-size="11">3</text><text x="320.66666666666663" y="268" text-anchor="middle" fill="#5e6472" font-size="11">4</text><text x="413.55555555555554" y="268" text-anchor="middle" fill="#5e6472" font-size="11">5</text><text x="506.44444444444446" y="268" text-anchor="middle" fill="#5e6472" font-size="11">6</text><text x="599.3333333333333" y="268" text-anchor="middle" fill="#5e6472" font-size="11">7</text><text x="692.2222222222223" y="268" text-anchor="middle" fill="#5e6472" font-size="11">8</text><text x="785.1111111111111" y="268" text-anchor="middle" fill="#5e6472" font-size="11">9</text><text x="878" y="268" text-anchor="middle" fill="#5e6472" font-size="11">10</text>
+    </svg>
+    <div class="legend"><span><i style="background:#cc5803"></i>baseline-gemini</span><span><i style="background:#264653"></i>baseline-grok</span><span><i style="background:#8f2d56"></i>baseline-openai</span><span><i style="background:#3a86ff"></i>gemini</span><span><i style="background:#6a4c93"></i>grok</span><span><i style="background:#cc5803"></i>openai-mini</span><span><i style="background:#264653"></i>openai-nano</span></div>
+  </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Iteration Drift Curve</h2>
+        <div class="chart-wrap">
+    <div class="chart-meta">
+      <span>Mean drift score per iteration across runs.</span>
+      <span>Zoomed range: 0.00 to 7.91 score</span>
+    </div>
+    <svg viewBox="0 0 920 280" role="img" aria-label="Iteration drift curve">
+      <g>
+      <line x1="42" y1="42" x2="878" y2="42" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="46" text-anchor="end" fill="#5e6472" font-size="11">7.91</text>
+    </g><g>
+      <line x1="42" y1="90.99999999999997" x2="878" y2="90.99999999999997" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="94.99999999999997" text-anchor="end" fill="#5e6472" font-size="11">5.93</text>
+    </g><g>
+      <line x1="42" y1="140" x2="878" y2="140" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="144" text-anchor="end" fill="#5e6472" font-size="11">3.95</text>
+    </g><g>
+      <line x1="42" y1="189" x2="878" y2="189" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="193" text-anchor="end" fill="#5e6472" font-size="11">1.98</text>
+    </g><g>
+      <line x1="42" y1="238" x2="878" y2="238" stroke="rgba(20, 33, 61, 0.1)" stroke-dasharray="4 6" />
+      <text x="32" y="242" text-anchor="end" fill="#5e6472" font-size="11">0.00</text>
+    </g>
+      <line x1="42" y1="238" x2="878" y2="238" stroke="rgba(20, 33, 61, 0.18)" />
+      <line x1="42" y1="42" x2="42" y2="238" stroke="rgba(20, 33, 61, 0.18)" />
+      <g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-0" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#cc5803" />
+            <stop offset="100%" stop-color="#f4a259" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-0)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,238 227.77777777777777,238 320.66666666666663,238 413.55555555555554,238 506.44444444444446,238 599.3333333333333,238 692.2222222222223,238 785.1111111111111,238 878,238" />
+        <circle cx="42" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 2: 0.00</title>
+          </circle><circle cx="227.77777777777777" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 3: 0.00</title>
+          </circle><circle cx="320.66666666666663" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 4: 0.00</title>
+          </circle><circle cx="413.55555555555554" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 5: 0.00</title>
+          </circle><circle cx="506.44444444444446" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 6: 0.00</title>
+          </circle><circle cx="599.3333333333333" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 7: 0.00</title>
+          </circle><circle cx="692.2222222222223" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 8: 0.00</title>
+          </circle><circle cx="785.1111111111111" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 9: 0.00</title>
+          </circle><circle cx="878" cy="238" r="4.5" fill="#f4a259">
+            <title>baseline-gemini step 10: 0.00</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#264653" />
+            <stop offset="100%" stop-color="#2a9d8f" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-1)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,238 227.77777777777777,238 320.66666666666663,238 413.55555555555554,238 506.44444444444446,238 599.3333333333333,238 692.2222222222223,238 785.1111111111111,238 878,238" />
+        <circle cx="42" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 2: 0.00</title>
+          </circle><circle cx="227.77777777777777" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 3: 0.00</title>
+          </circle><circle cx="320.66666666666663" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 4: 0.00</title>
+          </circle><circle cx="413.55555555555554" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 5: 0.00</title>
+          </circle><circle cx="506.44444444444446" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 6: 0.00</title>
+          </circle><circle cx="599.3333333333333" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 7: 0.00</title>
+          </circle><circle cx="692.2222222222223" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 8: 0.00</title>
+          </circle><circle cx="785.1111111111111" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 9: 0.00</title>
+          </circle><circle cx="878" cy="238" r="4.5" fill="#2a9d8f">
+            <title>baseline-grok step 10: 0.00</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#8f2d56" />
+            <stop offset="100%" stop-color="#d46a6a" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-2)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,238 227.77777777777777,238 320.66666666666663,238 413.55555555555554,238 506.44444444444446,238 599.3333333333333,238 692.2222222222223,238 785.1111111111111,238 878,238" />
+        <circle cx="42" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 2: 0.00</title>
+          </circle><circle cx="227.77777777777777" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 3: 0.00</title>
+          </circle><circle cx="320.66666666666663" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 4: 0.00</title>
+          </circle><circle cx="413.55555555555554" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 5: 0.00</title>
+          </circle><circle cx="506.44444444444446" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 6: 0.00</title>
+          </circle><circle cx="599.3333333333333" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 7: 0.00</title>
+          </circle><circle cx="692.2222222222223" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 8: 0.00</title>
+          </circle><circle cx="785.1111111111111" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 9: 0.00</title>
+          </circle><circle cx="878" cy="238" r="4.5" fill="#d46a6a">
+            <title>baseline-openai step 10: 0.00</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-3" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#3a86ff" />
+            <stop offset="100%" stop-color="#7cc6fe" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-3)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,233.04174045029092 227.77777777777777,230.5626106754364 320.66666666666663,225.6043511257273 413.55555555555554,230.5626106754364 506.44444444444446,230.5626106754364 599.3333333333333,225.6043511257273 692.2222222222223,223.12522135087275 785.1111111111111,223.12522135087275 878,205.77131292689097" />
+        <circle cx="42" cy="238" r="4.5" fill="#7cc6fe">
+            <title>gemini step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="233.04174045029092" r="4.5" fill="#7cc6fe">
+            <title>gemini step 2: 0.20</title>
+          </circle><circle cx="227.77777777777777" cy="230.5626106754364" r="4.5" fill="#7cc6fe">
+            <title>gemini step 3: 0.30</title>
+          </circle><circle cx="320.66666666666663" cy="225.6043511257273" r="4.5" fill="#7cc6fe">
+            <title>gemini step 4: 0.50</title>
+          </circle><circle cx="413.55555555555554" cy="230.5626106754364" r="4.5" fill="#7cc6fe">
+            <title>gemini step 5: 0.30</title>
+          </circle><circle cx="506.44444444444446" cy="230.5626106754364" r="4.5" fill="#7cc6fe">
+            <title>gemini step 6: 0.30</title>
+          </circle><circle cx="599.3333333333333" cy="225.6043511257273" r="4.5" fill="#7cc6fe">
+            <title>gemini step 7: 0.50</title>
+          </circle><circle cx="692.2222222222223" cy="223.12522135087275" r="4.5" fill="#7cc6fe">
+            <title>gemini step 8: 0.60</title>
+          </circle><circle cx="785.1111111111111" cy="223.12522135087275" r="4.5" fill="#7cc6fe">
+            <title>gemini step 9: 0.60</title>
+          </circle><circle cx="878" cy="205.77131292689097" r="4.5" fill="#7cc6fe">
+            <title>gemini step 10: 1.30</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-4" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#6a4c93" />
+            <stop offset="100%" stop-color="#b8a1d9" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-4)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,235.52087022514547 227.77777777777777,235.52087022514547 320.66666666666663,235.52087022514547 413.55555555555554,233.04174045029092 506.44444444444446,228.08348090058183 599.3333333333333,225.6043511257273 692.2222222222223,220.64609157601822 785.1111111111111,228.08348090058183 878,220.64609157601822" />
+        <circle cx="42" cy="238" r="4.5" fill="#b8a1d9">
+            <title>grok step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="235.52087022514547" r="4.5" fill="#b8a1d9">
+            <title>grok step 2: 0.10</title>
+          </circle><circle cx="227.77777777777777" cy="235.52087022514547" r="4.5" fill="#b8a1d9">
+            <title>grok step 3: 0.10</title>
+          </circle><circle cx="320.66666666666663" cy="235.52087022514547" r="4.5" fill="#b8a1d9">
+            <title>grok step 4: 0.10</title>
+          </circle><circle cx="413.55555555555554" cy="233.04174045029092" r="4.5" fill="#b8a1d9">
+            <title>grok step 5: 0.20</title>
+          </circle><circle cx="506.44444444444446" cy="228.08348090058183" r="4.5" fill="#b8a1d9">
+            <title>grok step 6: 0.40</title>
+          </circle><circle cx="599.3333333333333" cy="225.6043511257273" r="4.5" fill="#b8a1d9">
+            <title>grok step 7: 0.50</title>
+          </circle><circle cx="692.2222222222223" cy="220.64609157601822" r="4.5" fill="#b8a1d9">
+            <title>grok step 8: 0.70</title>
+          </circle><circle cx="785.1111111111111" cy="228.08348090058183" r="4.5" fill="#b8a1d9">
+            <title>grok step 9: 0.40</title>
+          </circle><circle cx="878" cy="220.64609157601822" r="4.5" fill="#b8a1d9">
+            <title>grok step 10: 0.70</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-5" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#cc5803" />
+            <stop offset="100%" stop-color="#f4a259" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-5)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,220.64609157601822 227.77777777777777,218.16696180116367 320.66666666666663,208.2504427017455 413.55555555555554,203.29218315203644 506.44444444444446,195.8547938274728 599.3333333333333,126.43916013154566 692.2222222222223,84.29395395901847 785.1111111111111,84.29395395901847 878,133.8765494561093" />
+        <circle cx="42" cy="238" r="4.5" fill="#f4a259">
+            <title>openai-mini step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="220.64609157601822" r="4.5" fill="#f4a259">
+            <title>openai-mini step 2: 0.70</title>
+          </circle><circle cx="227.77777777777777" cy="218.16696180116367" r="4.5" fill="#f4a259">
+            <title>openai-mini step 3: 0.80</title>
+          </circle><circle cx="320.66666666666663" cy="208.2504427017455" r="4.5" fill="#f4a259">
+            <title>openai-mini step 4: 1.20</title>
+          </circle><circle cx="413.55555555555554" cy="203.29218315203644" r="4.5" fill="#f4a259">
+            <title>openai-mini step 5: 1.40</title>
+          </circle><circle cx="506.44444444444446" cy="195.8547938274728" r="4.5" fill="#f4a259">
+            <title>openai-mini step 6: 1.70</title>
+          </circle><circle cx="599.3333333333333" cy="126.43916013154566" r="4.5" fill="#f4a259">
+            <title>openai-mini step 7: 4.50</title>
+          </circle><circle cx="692.2222222222223" cy="84.29395395901847" r="4.5" fill="#f4a259">
+            <title>openai-mini step 8: 6.20</title>
+          </circle><circle cx="785.1111111111111" cy="84.29395395901847" r="4.5" fill="#f4a259">
+            <title>openai-mini step 9: 6.20</title>
+          </circle><circle cx="878" cy="133.8765494561093" r="4.5" fill="#f4a259">
+            <title>openai-mini step 10: 4.20</title>
+          </circle>
+      </g><g>
+        <defs>
+          <linearGradient id="chart-meanDriftScore-6" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#264653" />
+            <stop offset="100%" stop-color="#2a9d8f" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke="url(#chart-meanDriftScore-6)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="42,238 134.88888888888889,220.64609157601822 227.77777777777777,215.68783202630914 320.66666666666663,208.2504427017455 413.55555555555554,185.93827472805464 506.44444444444446,163.62610675436378 599.3333333333333,148.75132810523655 692.2222222222223,119.00177080698205 785.1111111111111,74.37743485960033 878,71.89830508474577" />
+        <circle cx="42" cy="238" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 1: 0.00</title>
+          </circle><circle cx="134.88888888888889" cy="220.64609157601822" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 2: 0.70</title>
+          </circle><circle cx="227.77777777777777" cy="215.68783202630914" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 3: 0.90</title>
+          </circle><circle cx="320.66666666666663" cy="208.2504427017455" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 4: 1.20</title>
+          </circle><circle cx="413.55555555555554" cy="185.93827472805464" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 5: 2.10</title>
+          </circle><circle cx="506.44444444444446" cy="163.62610675436378" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 6: 3.00</title>
+          </circle><circle cx="599.3333333333333" cy="148.75132810523655" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 7: 3.60</title>
+          </circle><circle cx="692.2222222222223" cy="119.00177080698205" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 8: 4.80</title>
+          </circle><circle cx="785.1111111111111" cy="74.37743485960033" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 9: 6.60</title>
+          </circle><circle cx="878" cy="71.89830508474577" r="4.5" fill="#2a9d8f">
+            <title>openai-nano step 10: 6.70</title>
+          </circle>
+      </g>
+      <text x="42" y="268" text-anchor="middle" fill="#5e6472" font-size="11">1</text><text x="134.88888888888889" y="268" text-anchor="middle" fill="#5e6472" font-size="11">2</text><text x="227.77777777777777" y="268" text-anchor="middle" fill="#5e6472" font-size="11">3</text><text x="320.66666666666663" y="268" text-anchor="middle" fill="#5e6472" font-size="11">4</text><text x="413.55555555555554" y="268" text-anchor="middle" fill="#5e6472" font-size="11">5</text><text x="506.44444444444446" y="268" text-anchor="middle" fill="#5e6472" font-size="11">6</text><text x="599.3333333333333" y="268" text-anchor="middle" fill="#5e6472" font-size="11">7</text><text x="692.2222222222223" y="268" text-anchor="middle" fill="#5e6472" font-size="11">8</text><text x="785.1111111111111" y="268" text-anchor="middle" fill="#5e6472" font-size="11">9</text><text x="878" y="268" text-anchor="middle" fill="#5e6472" font-size="11">10</text>
+    </svg>
+    <div class="legend"><span><i style="background:#cc5803"></i>baseline-gemini</span><span><i style="background:#264653"></i>baseline-grok</span><span><i style="background:#8f2d56"></i>baseline-openai</span><span><i style="background:#3a86ff"></i>gemini</span><span><i style="background:#6a4c93"></i>grok</span><span><i style="background:#cc5803"></i>openai-mini</span><span><i style="background:#264653"></i>openai-nano</span></div>
+  </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Mean Cost</h2>
+        <div class="bars">
+          <div>
+            <div class="label"><span>baseline-openai</span><span>$0.2098</span></div>
+            <div class="bar-shell"><div class="bar" style="width:81.0351487060641%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-mini</span><span>$0.1355</span></div>
+            <div class="bar-shell"><div class="bar" style="width:52.33680957898803%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-nano</span><span>$0.1054</span></div>
+            <div class="bar-shell"><div class="bar" style="width:40.710699111626106%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-grok</span><span>$0.2589</span></div>
+            <div class="bar-shell"><div class="bar" style="width:100%"></div></div>
+          </div><div>
+            <div class="label"><span>grok</span><span>$0.1336</span></div>
+            <div class="bar-shell"><div class="bar" style="width:51.60293549633062%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-gemini</span><span>$0.0670</span></div>
+            <div class="bar-shell"><div class="bar" style="width:25.878717651602933%"></div></div>
+          </div><div>
+            <div class="label"><span>gemini</span><span>$0.0616</span></div>
+            <div class="bar-shell"><div class="bar" style="width:23.792970258787175%"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Mean Drift</h2>
+        <div class="drift-panel">
+    <p class="metric-hint">Higher is worse. Drift combines missing invariants and detected contradictions.</p>
+    <div class="bars">
+      <div>
+        <div class="label"><span>baseline-openai</span><span>0.00</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill stable">Stable memory</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:0%"></div></div>
+      </div><div>
+        <div class="label"><span>openai-mini</span><span>2.69</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill warning">Drift detected</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:90.87837837837837%"></div></div>
+      </div><div>
+        <div class="label"><span>openai-nano</span><span>2.96</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill warning">Drift detected</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:100%"></div></div>
+      </div><div>
+        <div class="label"><span>baseline-grok</span><span>0.00</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill stable">Stable memory</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:0%"></div></div>
+      </div><div>
+        <div class="label"><span>grok</span><span>0.32</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill warning">Drift detected</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:10.81081081081081%"></div></div>
+      </div><div>
+        <div class="label"><span>baseline-gemini</span><span>0.00</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill stable">Stable memory</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:0%"></div></div>
+      </div><div>
+        <div class="label"><span>gemini</span><span>0.46</span></div>
+        <div class="drift-row-meta">
+          <span class="status-pill warning">Drift detected</span>
+        </div>
+        <div class="bar-shell"><div class="bar drift" style="width:15.54054054054054%"></div></div>
+      </div>
+    </div>
+  </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Mean Tokens</h2>
+        <div class="bars">
+          <div>
+            <div class="label"><span>baseline-openai</span><span>43,480</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:58.8769455345125%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-mini</span><span>66,522</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:90.07902654891224%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-nano</span><span>73,849</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:100%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-grok</span><span>52,518</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:71.11509222923657%"></div></div>
+          </div><div>
+            <div class="label"><span>grok</span><span>65,064</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:88.10458153573663%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-gemini</span><span>24,119</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:32.659793144352086%"></div></div>
+          </div><div>
+            <div class="label"><span>gemini</span><span>41,557</span></div>
+            <div class="bar-shell"><div class="bar tokens" style="width:56.27324011558783%"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Quality</h2>
+        <div class="bars">
+          <div>
+            <div class="label"><span>baseline-openai</span><span>9.43</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:94.25000000000001%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-mini</span><span>9.20</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:91.95%"></div></div>
+          </div><div>
+            <div class="label"><span>openai-nano</span><span>9.16</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:91.60000000000001%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-grok</span><span>9.00</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:90%"></div></div>
+          </div><div>
+            <div class="label"><span>grok</span><span>8.64</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:86.4%"></div></div>
+          </div><div>
+            <div class="label"><span>baseline-gemini</span><span>7.86</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:78.59%"></div></div>
+          </div><div>
+            <div class="label"><span>gemini</span><span>8.27</span></div>
+            <div class="bar-shell"><div class="bar quality" style="width:82.65%"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-top: 22px;">
+        <h2>Summary</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Config</th>
+              <th>Mean Cost</th>
+              <th>Mean Drift</th>
+              <th>Mean Tokens</th>
+              <th>Mean Quality</th>
+              <th>95% Cost CI</th>
+              <th>Cost Savings</th>
+              <th>Token Savings</th>
+              <th>Cost p-value</th>
+              <th>Cohen's d</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>baseline-openai</td>
+              <td>$0.2098</td>
+              <td>0.00</td>
+              <td>43,480</td>
+              <td>9.43</td>
+              <td>$0.2044 to $0.2153</td>
+              <td>0.00%</td>
+              <td>0.00%</td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr><tr>
+              <td>openai-mini</td>
+              <td>$0.1355</td>
+              <td>2.69</td>
+              <td>66,522</td>
+              <td>9.20</td>
+              <td>$0.1323 to $0.1387</td>
+              <td>35.41%</td>
+              <td>-53.00%</td>
+              <td>0.000000 (significant)</td>
+              <td>-11.9410 (large)</td>
+            </tr><tr>
+              <td>openai-nano</td>
+              <td>$0.1054</td>
+              <td>2.96</td>
+              <td>73,849</td>
+              <td>9.16</td>
+              <td>$0.1022 to $0.1087</td>
+              <td>49.76%</td>
+              <td>-69.85%</td>
+              <td>0.000000 (significant)</td>
+              <td>-16.7117 (large)</td>
+            </tr><tr>
+              <td>baseline-grok</td>
+              <td>$0.2589</td>
+              <td>0.00</td>
+              <td>52,518</td>
+              <td>9.00</td>
+              <td>$0.2348 to $0.2830</td>
+              <td>0.00%</td>
+              <td>0.00%</td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr><tr>
+              <td>grok</td>
+              <td>$0.1336</td>
+              <td>0.32</td>
+              <td>65,064</td>
+              <td>8.64</td>
+              <td>$0.1295 to $0.1376</td>
+              <td>48.40%</td>
+              <td>-23.89%</td>
+              <td>0.000001 (significant)</td>
+              <td>-5.1945 (large)</td>
+            </tr><tr>
+              <td>baseline-gemini</td>
+              <td>$0.0670</td>
+              <td>0.00</td>
+              <td>24,119</td>
+              <td>7.86</td>
+              <td>$0.0590 to $0.0749</td>
+              <td>0.00%</td>
+              <td>0.00%</td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr><tr>
+              <td>gemini</td>
+              <td>$0.0616</td>
+              <td>0.46</td>
+              <td>41,557</td>
+              <td>8.27</td>
+              <td>$0.0595 to $0.0637</td>
+              <td>8.06%</td>
+              <td>-72.30%</td>
+              <td>0.174104 (not significant)</td>
+              <td>-0.6531 (medium)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

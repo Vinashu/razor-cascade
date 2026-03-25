@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Gate summarizer integration\nTask objective: Compress the history into a structured summary before flagship execution.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To:** TaskForge Team\n**From:** Senior Engineer\n**Subject:** Implementation Update: Task 5 - Gate Summarizer Integration\n\n### 1. Goal\nImplement an automated history summarization gate for the `cascade` execution mode. This will archive terminal-state tasks (`completed`, `failed`) into a separate log, pruning the primary `tasks.json` file to maintain performance and focus the active dataset.\n\n### 2. Proposed Implementation Details\n-   **Trigger:** The summarization logic will be invoked at the start of the main execution flow, specifically when `mode === 'cascade'`.\n-   **Process:**\n    1.  Load all tasks from `~/.taskforge/tasks.json`.\n    2.  Filter for tasks with `status: 'completed'` or `status: 'failed'`.\n    3.  If found, generate a single `Summary` object containing aggregated data (e.g., `tasksArchived`, `periodStart`, `periodEnd`, `idList`).\n    4.  Append this `Summary` object as a new line to `~/.taskforge/history.jsonl` (JSON Lines format for efficient, append-only writes).\n    5.  Remove the archived tasks from the in-memory\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 8}\n```",
+  "usage": {
+    "inputTokens": 506,
+    "outputTokens": 14
+  },
+  "durationMs": 641
+}

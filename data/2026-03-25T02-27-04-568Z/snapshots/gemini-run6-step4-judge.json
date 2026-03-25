@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Complete/delete commands + validation\nTask objective: Add complete/delete flows with good error handling and state validation.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To:** TaskForge Team\n**From:** Senior Engineer\n**Subject:** Implementation Update: Task `complete` and `delete` Commands\n\n### 1. Goal\nImplement `complete` and `delete` commands to manage task lifecycle. The implementation will focus on robust ID validation, clear user feedback for partial or failed operations, and safe state transitions using existing atomic file I/O.\n\n### 2. Proposed Implementation Details\n*   **CLI Surface:**\n    *   `taskforge complete <id...>`: Marks one or more tasks as 'completed'.\n    *   `taskforge delete <id...>`: Permanently removes one or more tasks.\n*   **Core Logic:**\n    1.  A shared `TaskService` will be refactored to centralize reading/writing `tasks.json`, ensuring all commands use the same Zod-validated, atomic I/O helpers established in the\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 424,
+    "outputTokens": 14
+  },
+  "durationMs": 459
+}

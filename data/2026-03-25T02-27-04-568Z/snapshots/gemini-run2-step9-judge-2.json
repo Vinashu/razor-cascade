@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Refinement loop\nTask objective: Improve an existing task based on feedback and preserve iteration history.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n### TaskForge Engineering Update\n\n**1. Goal**\nEnhance the `Task` model to preserve a complete modification history. This enables audit trails for task changes, directly supporting the \"Refinement loop\" objective by tracking a task's evolution.\n\n**2. Proposed Implementation Details**\n- **Schema Update:** The `Task` interface will be extended with a `history` array. Each element in the array will be an object containing a `timestamp`, `title`, and `status`, representing a snapshot of the task's state before a modification.\n- **Logic Modification:** The core `update` task logic will be modified. Before applying new changes, it will capture the current state (`title`, `status`, `updatedAt` as `timestamp`)\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 8}\n```",
+  "usage": {
+    "inputTokens": 385,
+    "outputTokens": 14
+  },
+  "durationMs": 503
+}

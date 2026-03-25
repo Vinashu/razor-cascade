@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: List, filter, and view tasks\nTask objective: Support querying tasks by status, priority, tags, and free-text search.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To:** TaskForge Team\n**From:** Senior Engineer\n**Subject:** Implementation Update: Task 3 - Task Querying & Filtering\n\n### 1. Goal\nImplement the `list` command to enable querying and filtering of tasks from the JSON data store. This will support filtering by status, priority, tags, and a free-text search against task titles and descriptions.\n\n### 2. Proposed\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 323,
+    "outputTokens": 14
+  },
+  "durationMs": 714
+}

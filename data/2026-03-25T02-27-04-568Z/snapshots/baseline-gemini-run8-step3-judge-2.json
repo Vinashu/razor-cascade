@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: List, filter, and view tasks\nTask objective: Support querying tasks by status, priority, tags, and free-text search.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To**: Engineering Team\n**From**: Senior Engineer\n**Subject**: Implementation Plan: Task Querying & Filtering (Baseline)\n\n### 1. Goal\nImplement the core logic and CLI commands to list, filter, and view tasks. This will enable users to query the task database by status, priority, tags, and free-text search, fulfilling a key requirement for the baseline execution mode.\n\n### 2. Proposed Implementation Details\n*   **CLI Commands**:\n    *   `taskforge list` (alias `ls`): A new command to display tasks in a formatted table.\n    *   `taskforge view <id>`: A new command to display all details for a single task.\n\n*   **Filtering Options**: The `list` command will be extended with the following `commander.js` options:\n    *   `--status <status>`: Filter by status (e.g., 'todo', 'done').\n    *   `--priority <priority>`: Filter by priority (e.g., 'high',\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 462,
+    "outputTokens": 14
+  },
+  "durationMs": 505
+}

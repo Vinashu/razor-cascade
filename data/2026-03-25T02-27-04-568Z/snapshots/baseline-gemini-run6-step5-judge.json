@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Gate summarizer integration\nTask objective: Compress the history into a structured summary before flagship execution.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To:** TaskForge Team\n**From:** Senior Engineer\n**Subject:** Implementation Update: Task 5 - Gate Summarizer Integration\n\n### 1. Goal\nIntegrate a history summarization step that acts as a \"gate\" within the `run` command. This process will read the entire task history, generate a structured summary, and display it before the main task logic proceeds, providing essential context for the RazorCascade study's baseline executions.\n\n### 2. Proposed Implementation Details\n*   **Integration Point:** The summarization logic will be invoked at the beginning of the `run` command's handler in `src/commands/run.ts`.\n*   **Summarizer Module:** A new, dedicated module `src/summarizer/history.ts` will be created to encapsulate the summarization logic. It will export a primary function, `generateHistorySummary`.\n*   **Data Flow:**\n    1.  The `run` command will first call the existing persistence layer to load all tasks from the JSON store.\n    2.  This array of tasks will be passed to `generateHistorySummary`.\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 474,
+    "outputTokens": 14
+  },
+  "durationMs": 529
+}

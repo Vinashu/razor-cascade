@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: List, filter, and view tasks\nTask objective: Support querying tasks by status, priority, tags, and free-text search.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "I notice that no candidate response was provided in your message. You've included the task title, objective, and rubric, but the actual \"Candidate response\" section is empty.\n\nTo properly evaluate an engineering update against the stated task objective of \"Support querying tasks by status, priority, tags, and free-text search,\" I would need to see:\n\n- The proposed implementation details\n- Architecture decisions\n- Code or design specifications\n- API/query interface design\n- Any relevant technical documentation\n\nPlease provide the candidate response you'd like me to evaluate, and I'll score it according to the rubric dimensions (completeness, correctness, clarity, and architecture).",
+  "usage": {
+    "inputTokens": 232,
+    "outputTokens": 142
+  },
+  "durationMs": 1743
+}

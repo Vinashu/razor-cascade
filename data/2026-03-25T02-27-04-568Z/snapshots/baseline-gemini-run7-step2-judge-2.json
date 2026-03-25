@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Task data model + JSON persistence\nTask objective: Define a typed task model and persist it safely to JSON storage.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To**: RazorCascade Team\n**From**: Senior Engineer\n**Subject**: TaskForge Implementation Update: Task Model & JSON Persistence\n\n### 1. Goal\nDefine a strongly-typed data model for a `Task` and implement a robust, safe persistence layer using a local JSON file. This provides the foundational state management for tracking task execution and results.\n\n### 2. Proposed Implementation Details\n*   **Data Model**: A `Task` interface will be defined in `src/types.ts`.\n    *   **Fields**: `id: string`, `description: string`, `status: 'pending' | 'running' | 'completed' | 'failed'`, `\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 380,
+    "outputTokens": 14
+  },
+  "durationMs": 469
+}

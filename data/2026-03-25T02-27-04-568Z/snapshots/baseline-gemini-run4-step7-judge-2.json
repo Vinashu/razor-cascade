@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Code snippet generator\nTask objective: Generate useful starter code from a short description.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**To**: Engineering Team\n**From**: Senior Engineer\n**Subject**: Update: TaskForge Code Snippet Generator\n\n### 1. Goal\nImplement a `generate` command that creates starter code snippets based on a task's description. This feature aims to accelerate the initial development phase for tasks identified within the `baseline` execution mode by providing relevant, context-aware boilerplate.\n\n### 2. Proposed Implementation Details\n*   **New `generate` Command**:\n    *   A new command, `taskforge generate <task-id>`, will be created in `src/commands/generate.ts`.\n    *   It will accept a required positional argument for the target task ID.\n    *   It will support an `--output <path>` option to save the generated snippet directly to a file instead of printing to stdout.\n*   **Generator Module**:\n    *   A new module, `src/lib/generator.ts`, will encapsulate the code generation logic.\n    *   It will export a function `generateSnippet(task: Task): Promise<string>`.\n    *   For the `baseline` mode, this function will use a simple, deterministic keyword-matching heuristic\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 8}\n```",
+  "usage": {
+    "inputTokens": 487,
+    "outputTokens": 14
+  },
+  "durationMs": 457
+}

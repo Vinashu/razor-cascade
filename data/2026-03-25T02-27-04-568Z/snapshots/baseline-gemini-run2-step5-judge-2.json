@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Gate summarizer integration\nTask objective: Compress the history into a structured summary before flagship execution.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**Subject: TaskForge Gate Summarizer Implementation**\n\n**1. Goal**\nImplement a `summarize` command to process the task history and generate a structured, aggregate summary. This provides a high-level overview of completed work, serving as a data snapshot before subsequent flagship operations.\n\n**2. Proposed Implementation Details**\n*   **New Command:** Introduce `taskforge summarize` in a new `src/commands/summarize.ts` file.\n*   **Summarization Logic:** The core aggregation logic will be encapsulated in a new `src/lib/summarizer.ts` module. This module will:\n\nRepeat evaluation pass 2 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 8}\n```",
+  "usage": {
+    "inputTokens": 363,
+    "outputTokens": 14
+  },
+  "durationMs": 441
+}

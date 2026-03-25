@@ -1,0 +1,10 @@
+{
+  "system": "You are a strict, impartial evaluator. Score only the candidate response against the stated task objective.",
+  "prompt": "Evaluate the candidate engineering update for this study task.\n\nTask title: Report export\nTask objective: Export Markdown and HTML outputs suitable for publication or sharing.\n\nRubric (use these for your internal reasoning only - do NOT include sub-scores in the output):\n- completeness: 0-3 (does the response fully address the objective?)\n- correctness: 0-3 (is the proposed implementation technically sound?)\n- clarity: 0-2 (is it easy to understand and act on?)\n- architecture: 0-2 (does it respect sound design principles?)\n\nCandidate response:\n**Subject: Implementation Plan: `cascade export` for Markdown/HTML Reports**\n\n### 1. Goal\nImplement a new command, `cascade export`, to generate publication-ready reports in both Markdown and HTML formats. This command will consume the `summary.json` file produced by `cascade summarize` to provide a shareable overview of the test run.\n\n### 2. Proposed Implementation Details\n*   **CLI Command:** Introduce `cascade export` using `commander.js`. It will default to generating both formats.\n    *   `--output-dir <path>`: Specify a directory for the reports (defaults to `./reports`).\n    *   `--input <path>`: Specify the path to `summary.json` (defaults to `./summary.json`).\n*   **Markdown Generation:** A new `ReportGenerator` service will read `summary.json` and use template literals to construct a `report.md` file. The structure will be simple and directly reflect the summary schema (total tasks, completed count, failed count, etc.).\n*   **HTML Generation:** To ensure consistency and avoid maintaining two templates, the generated Markdown content will be converted to HTML.\n    *   Add the `\n\nRepeat evaluation pass 1 of 2. Keep the score consistent with the rubric.\n\nRespond with ONLY a valid JSON object where \"score\" is the integer sum of the four rubric dimensions above (0-10):\n{\"score\": <integer>}",
+  "response": "```json\n{\"score\": 7}\n```",
+  "usage": {
+    "inputTokens": 489,
+    "outputTokens": 14
+  },
+  "durationMs": 563
+}

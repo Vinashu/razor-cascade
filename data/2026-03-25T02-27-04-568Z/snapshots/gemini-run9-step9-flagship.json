@@ -1,0 +1,10 @@
+{
+  "system": "You are a senior engineer writing concise implementation updates.",
+  "prompt": "You are contributing to TaskForge, a TypeScript + Bun CLI used in the RazorCascade memory reliability study.\n\nExecution mode: cascade\nStandardized task: 9. Refinement loop\nObjective: Improve an existing task based on feedback and preserve iteration history.\n\nContext from prior work:\nGoal: Build the TaskForge CLI with AI-assisted features and robust automated testing.\nDecisions: Use Bun and TypeScript for the CLI.; Leverage `commander.js` for CLI argument parsing and command structure.; Persist tasks in `~/.taskforge/tasks.json` using atomic read/write operations.; Abstract AI interactions via a dedicated `AIService`.; Implement `cascade`, `list`, `complete`, `delete`, `decompose`, and `generate-snippet` commands.; Adopt `bun:test` for automated testing, mocking `fs` and `AIService` for isolation.\nRisks: Mocked AI service behavior may diverge from actual LLM API.; LLM output quality and format can be inconsistent or hallucinate.; API latency for LLM calls may impact user experience.; Tests asserting on exact string output can be brittle.\nSnippets: const storagePath = '~/.taskforge/tasks.json'; | interface Task { id: string; description: string; status: 'pending' | 'in-progress' | 'completed'; ... }\nInvariants: None captured.\n\nProduce a concise engineering update that includes:\n1. Goal\n2. Proposed implementation details\n3. Validation or testing\n4. Risks",
+  "response": "**Subject: Implementation Plan: Task 9 - Refinement Loop**\n\n### 1. Goal\nImplement a `refine` command to iteratively improve a task's description using AI-driven feedback, while preserving a history of changes for traceability.\n\n### 2. Proposed Implementation Details\n*   **CLI Command:** Introduce a new command: `taskforge refine <id> <feedback>`.\n*   **Data Model:** Update the `Task` interface to include an",
+  "usage": {
+    "inputTokens": 325,
+    "outputTokens": 98
+  },
+  "durationMs": 19217
+}

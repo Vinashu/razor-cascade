@@ -9,7 +9,7 @@
 
 ## Use of AI Disclaimer
 
-Rogelio de Leon Pereira served as the human-in-the-loop. He idealized the study and orchestrated AI agents to brainstorm ideas, build the codebase, analyze the data, write and review the report.
+Rogerio de Leon Pereira served as the human-in-the-loop. He idealized the study and orchestrated AI agents to brainstorm ideas, build the codebase, analyze the data, write and review the report.
 
 ---
 
