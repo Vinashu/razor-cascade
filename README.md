@@ -368,14 +368,6 @@ The runner reports:
 - [`METHODOLOGY.md`](./METHODOLOGY.md): experimental design, statistical choices, validity limits, and reproducibility notes.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): setup, test commands, study commands, provider extension notes, and code-style expectations.
 
-## Publication Tips
-
-- License the repo under MIT.
-- Keep the methodology identical across runs.
-- Save generated CSVs and summaries for reproducibility.
-- Pair the HTML dashboard with screenshots or charts in a paper/blog post.
-- Investigate gate prompt tuning if quality drops by more than 5%.
-
 ## Notes
 
 - Live provider integrations are supported, but the repo is runnable without keys through deterministic mock mode.
