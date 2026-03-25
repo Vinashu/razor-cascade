@@ -18,6 +18,10 @@
 bun run src/study.ts --configs "baseline-openai,openai-nano" --runs 2 --judge --judge-provider gemini --judge-model "gemini-2.5-flash" --judge-repeat 2 --snapshot --verbose
 ```
 
+```bash
+bun run src/study.ts --configs baseline-openai,openai-mini,openai-nano,baseline-grok,grok,baseline-gemini,gemini --judge --judge-provider anthropic --judge-model claude-haiku-4-5 --judge-repeat 2 --snapshot --verbose
+```
+
 # What to check after it finishes:
 #   1. No "Unable to parse judge score" warnings in the output
 #   2. steps.csv has non-empty qualityScore for every step
