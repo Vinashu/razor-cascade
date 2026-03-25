@@ -9,7 +9,11 @@
 
 ## Use of AI Disclaimer
 
-Rogerio de Leon Pereira served as the human-in-the-loop. He idealized the study and orchestrated AI agents to brainstorm ideas, build the codebase, analyze the data, write and review the report.
+Rogerio de Leon Pereira served as the human-in-the-loop throughout this work. He conceived the research question, designed the experimental protocol, made all judgment calls about methodology, and validated the outputs at each stage before they were used.
+
+The AI models listed as co-authors contributed as follows: **GPT (OpenAI)** assisted with brainstorming the study design and early drafts of the gate prompt; **Grok (xAI)** assisted with codebase scaffolding and test generation; **Claude (Anthropic)** assisted with data analysis, statistical interpretation, and writing and revising this paper. All three were also subjects of measurement in the study—their contributions as tools and as evaluated systems should be read as distinct roles.
+
+No AI-generated content was included without human review. The statistical computations were performed by the RazorCascade platform code, not by any language model. All figures and tables derive directly from CSV and JSON artifacts written by live API runs.
 
 ---
 
