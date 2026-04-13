@@ -121,11 +121,15 @@ The invariant field is important. Without it, the gate might drop stable facts a
 
 ### 3.5 Quality Scoring: Heuristic + LLM Judge
 
-Quality was assessed on two tracks:
+Quality was assessed on the **flagship response for each step**; gate summaries were not scored directly.
+  
+The pipeline has two scoring paths:
 
-**Heuristic scoring** uses a rubric evaluating task keyword coverage (weight 2.8), structural cues (weight 0.5), response length threshold (240 tokens, bonus 0.3), and test pass status (bonus 0.4), with a base score of 6. This provides a deterministic, reproducible quality signal.
+**Heuristic scoring** is the default deterministic scorer. It starts from a base score of 6 and adds points for task keyword coverage (weight 2.8), structural cues such as `goal`, `validation`, and `risk` (weight 0.5), response length of at least 240 characters (bonus 0.3), and test pass status (bonus 0.4; or -0.4 if tests fail). The final score is clamped to the 0-10 range. This provides a reproducible surface-level quality signal.
 
-**LLM judge scoring** used claude-haiku-4-5 (Anthropic) as an independent evaluator. Each step response was scored by the judge twice (`--judge-repeat 2`) to measure scoring consistency. The judge was given the task title, objective, and rubric, then asked to score the candidate response on completeness, correctness, clarity, and architecture.
+**LLM judge scoring** is an optional replacement for the heuristic score, not a blended add-on. When judge mode is enabled, the recorded `qualityScore` becomes the judge score for that flagship response. We used claude-haiku-4-5 (Anthropic) as an independent evaluator. The judge was given the task title, task objective, the candidate flagship response, and a rubric covering completeness, correctness, clarity, and architecture, and it returned a JSON score from 0 to 10.
+
+In the main study, each step response was scored by the judge twice (`--judge-repeat 2`). The stored step-level quality score was the mean of those repeated judge scores. If a judge call failed or returned malformed output, that repeat fell back to the heuristic scorer instead of being dropped.
 
 Judge self-consistency—defined as the fraction of step scores within 1 point across repeats—exceeded 98% across all configurations (range: 98% for baseline-gemini to 100% for baseline-openai, openai-mini, baseline-grok, grok, and gemini), confirming that claude-haiku-4-5 is a stable scoring instrument for this rubric (see Section 5.7 for full analysis).
 
@@ -137,7 +141,7 @@ For each run we recorded:
 
 - Input and output token counts per step
 - Estimated cost in USD using each provider's public pricing
-- Quality score per step (heuristic + judge)
+- Quality score per flagship step (heuristic by default; judge mean when enabled, with heuristic fallback)
 - Invariant count, missing invariants, contradictions, and drift score
 - Test pass status
 - Latency in milliseconds
